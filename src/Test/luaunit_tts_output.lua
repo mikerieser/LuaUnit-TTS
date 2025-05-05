@@ -10,10 +10,19 @@ local M = require("Test.luaunit")
 -- Defaults: color scheme, chat, system log, gui
 ---------------------------------------------------------------
 
+--[[
+    TTSOutput: These are the defaults for the TTSOutput object. The defaults are:
+    - chat: ChatOutput (default: enabled) uses verbose output in TAP format to the chat window.
+    - log: LogOutput (default: enabled) uses low verbosity output in TEXT format to the system console.
+    - grid: GridOutput (default: enabled if hostObject exists) uses a clickable GUI grid to show test results.
+    - colors: color scheme for all outputs (default: see below) can easily be overridden by the user.
+    - yieldFrequency: (default: 10) number of tests between each coroutine.yield
+]]
 TTSOutput = {
     chat = { format = "TAP", verbosity = M.VERBOSITY_VERBOSE },
     log = { format = "TEXT", verbosity = M.VERBOSITY_LOW },
     grid = true,
+    yieldFrequency = 10, -- number of tests between each coroutine.yield
 
     -- Colors used by all outputs
     colors = {
@@ -88,7 +97,7 @@ local function createOutput(runner, colors, cfg, flushFunc)
     local baseFormatter = (cfg.format == "TAP") and M.TapOutput or M.TextOutput
     local t = baseFormatter.new(runner)
     t.colors = colors or TTSOutput.colors
-    t.verbosity = cfg.verbosity or M.VERBOSITY_DEFAULT
+    t.verbosity = cfg.verbosity
     t.flushFunc = flushFunc
 
     for k, v in pairs(_G.Emitter) do
@@ -193,6 +202,7 @@ function GridOutput.new(runner, colors)
         t[k] = v
     end
 
+    runner.hostObject.UI.setAttribute("TestStatus", "active", "true")
     return setmetatable(t, { __index = GridOutput })
 end
 
@@ -231,7 +241,6 @@ function GridOutput:startSuite()
     end
     testGrid.children = panels
     self.hostObject.UI.setXmlTable(uiTable)
-    coroutine.yield(0)
 end
 
 function GridOutput:endTest(node)
@@ -247,13 +256,51 @@ function GridOutput:endTest(node)
         local percent = 1 - (completedTests / self.runner.result.selectedCount)
         self.hostObject.UI.setAttribute("TestScroll", "verticalNormalizedPosition", tostring(percent))
     end
-    if completedTests % 10 == 0 then
-        coroutine.yield(0)
-    end
 end
 
 function GridOutput:totalTests()
     return self.runner.result.selectedCount
+end
+
+--[[────────────────────────────────────────────────────────────────────────────
+    YieldOutput: Isn't really an Output. It's a counter to yield control
+    from LuaUnit code to TTS to allow the various outputs to show up.
+    It's configurable, as the yield actually introduces a significant performance
+    hit when used with the GridOutput. So, if you don't need it, set it to 0.
+────────────────────────────────────────────────────────────────────────────]] --
+--- @class YieldOutput: genericOutput
+local YieldOutput     = {}
+YieldOutput.__index   = YieldOutput
+YieldOutput.__class__ = "YieldOutput"
+
+--- @param runner LuaUnit runner instance
+--- @param freq   number of tests between each coroutine.yield
+function YieldOutput.new(runner, freq)
+    -- inherit no-op lifecycle methods & emit/emitLine from genericOutput
+    local t = M.genericOutput.new(runner) -- :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
+    t.count = 0
+    t.freq  = freq or 10
+    return setmetatable(t, YieldOutput)
+end
+
+function YieldOutput:startSuite(node)
+    coroutine.yield(0)
+end
+
+function YieldOutput:endSuite(node)
+    coroutine.yield(0)
+end
+
+--- Called after each test; yields every self.freq tests.
+function YieldOutput:endTest(node)
+    self.count = self.count + 1
+    if self.count % self.freq == 0 then
+        coroutine.yield(0)
+    end
+end
+
+function YieldOutput:endClass(node)
+    coroutine.yield(0)
 end
 
 ---------------------------------------------------------------
@@ -275,6 +322,10 @@ function buildTTSOutput(runner, config)
     -- GridOutput (enabled by default if hostObject exists)
     if config.grid ~= false and runner.hostObject then
         root:add(GridOutput.new(runner, config.colors))
+    end
+
+    if config.yieldFrequency then
+        root:add(YieldOutput.new(runner, config.yieldFrequency))
     end
 
     return root

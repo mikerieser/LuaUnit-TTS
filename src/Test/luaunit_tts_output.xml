@@ -11,7 +11,7 @@
 <Panel id="TestStatus" width="650" height="700"
     position="0 350 -50"
     color="#666666"
-    active="true">
+    active="false">
 
     <VerticalLayout spacing="10" padding="10 10 10 10">
         <Text class="title"
