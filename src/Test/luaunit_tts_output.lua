@@ -27,14 +27,14 @@ TTSOutput = {
     -- Colors used by all outputs
     colors = {
         [M.NodeStatus.SUCCESS] = "#00FF00", -- bright green (test passed)
-        [M.NodeStatus.FAIL]    = "#FF0000", -- bright red (test failed)
-        [M.NodeStatus.ERROR]   = "#FF6600", -- dark orange (test had runtime error)
-        [M.NodeStatus.SKIP]    = "#FFFF00", -- yellow (test skipped)
-        INFO                   = "#FFFDD0", -- cream (generic info)
-        START                  = "#FFFF99", -- light yellow (suite start)
-        FINISH                 = "#FFFF99", -- light yellow (suite end)
-        NEUTRAL                = "#FFFFFF", -- white (grid squares before status)
-        UNKNOWN                = "#FF00FF", -- magenta
+        [M.NodeStatus.FAIL] = "#FF0000",    -- bright red (test failed)
+        [M.NodeStatus.ERROR] = "#FF6600",   -- dark orange (test had runtime error)
+        [M.NodeStatus.SKIP] = "#FFFF00",    -- yellow (test skipped)
+        INFO = "#FFFDD0",                   -- cream (generic info)
+        START = "#FFFF99",                  -- light yellow (suite start)
+        FINISH = "#FFFF99",                 -- light yellow (suite end)
+        NEUTRAL = "#FFFFFF",                -- white (grid squares before status)
+        UNKNOWN = "#FF00FF",                -- magenta
     },
 
     -- Factory method for LuaUnit's outputType.new() call
@@ -88,8 +88,11 @@ setmetatable(TTSMultiOutput, {
     │   ├── ChatOutput (decorates any formatter with colored output to chat window)
     │   └── LogOutput (decorates any formatter with output to system console)
     │
-    └── DIRECT OUTPUTS (special destinations)
-        └── GridOutput (visual GUI grid, subclasses genericOutput directly)
+    ├── DIRECT OUTPUTS (special destinations)
+    │   └── GridOutput (visual GUI grid, subclasses genericOutput directly)
+    │
+    └── YieldOutput (controls yieldFrequency)
+
 ────────────────────────────────────────────────────────────────────────────]] --
 
 -- createOutput for the text-based formatters (TextOutput/TapOutput)
@@ -185,6 +188,104 @@ local function findElementById(elements, id)
     return nil
 end
 
+local function buildGridUI()
+    return
+    {
+        {
+            tag = "Defaults",
+            attributes = {},
+            children = {
+                {
+                    tag = "Text",
+                    attributes = {
+                        alignment = "MiddleCenter",
+                        class = "title",
+                        color = "White",
+                        fontStyle = "Bold",
+                        resizeTextForBestFit = "true"
+                    },
+                    children = {},
+                }
+            },
+        },
+        {
+            tag = "Panel",
+            attributes = {
+                id = "TestStatus",
+                width = "650",
+                height = "700",
+                position = "0 350 -50",
+                color = "#666666",
+                active = "true"
+            },
+            children = {
+                {
+                    tag = "VerticalLayout",
+                    attributes = {
+                        spacing = "10",
+                        padding = "10 10 10 10"
+                    },
+                    children = {
+                        {
+                            tag = "Text",
+                            attributes = {
+                                class = "title",
+                                preferredHeight = "80",
+                                text = "Test Progress"
+                            }
+                        },
+                        {
+                            tag = "Panel",
+                            attributes = {
+                                preferredWidth = "580",
+                                flexibleHeight = "1",
+                                color = "#333333",
+                                padding = "10 10 0 10",
+                                alignment = "MiddleCenter"
+                            },
+                            children = {
+                                {
+                                    tag = "VerticalScrollView",
+                                    attributes = {
+                                        id = "TestScroll",
+                                        preferredHeight = "580",
+                                        contentSizeFitter = "vertical",
+                                        color = "#222222"
+                                    },
+                                    children = {
+                                        {
+                                            tag = "VerticalLayout",
+                                            attributes = {
+                                                preferredHeight = "580",
+                                                contentSizeFitter = "vertical"
+                                            },
+                                            children = {
+                                                {
+                                                    tag = "GridLayout",
+                                                    attributes = {
+                                                        id = "TestGrid",
+                                                        cellSize = "50 50",
+                                                        spacing = "6 6",
+                                                        padding = "10 10 10 10",
+                                                        constraint = "FixedColumnCount",
+                                                        constraintCount = "10",
+                                                        color = "#222222",
+                                                        alignment = "UpperCenter"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+end
+
 GridOutput = {
     __class__ = "GridOutput"
 }
@@ -202,16 +303,11 @@ function GridOutput.new(runner, colors)
         t[k] = v
     end
 
-    runner.hostObject.UI.setAttribute("TestStatus", "active", "true")
     return setmetatable(t, { __index = GridOutput })
 end
 
 function GridOutput:startSuite()
-    local uiTable = self.hostObject.UI.getXmlTable()
-    if not uiTable or #uiTable == 0 then
-        printToAll(self.__class__ .. ": Failed to get UI table", Color.fromHex(self.colors.ERROR))
-        return
-    end
+    local uiTable = buildGridUI()
 
     function onClick(player, value, id)
         local testResult = M.prettystr(self.testOutputs[id])
@@ -269,8 +365,8 @@ end
     hit when used with the GridOutput. So, if you don't need it, set it to 0.
 ────────────────────────────────────────────────────────────────────────────]] --
 --- @class YieldOutput: genericOutput
-local YieldOutput     = {}
-YieldOutput.__index   = YieldOutput
+local YieldOutput = {}
+YieldOutput.__index = YieldOutput
 YieldOutput.__class__ = "YieldOutput"
 
 --- @param runner LuaUnit runner instance
@@ -279,7 +375,7 @@ function YieldOutput.new(runner, freq)
     -- inherit no-op lifecycle methods & emit/emitLine from genericOutput
     local t = M.genericOutput.new(runner) -- :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
     t.count = 0
-    t.freq  = freq or 10
+    t.freq = freq or 10
     return setmetatable(t, YieldOutput)
 end
 

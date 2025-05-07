@@ -2,7 +2,7 @@
     LuaUnit Bootstrap for TTS
     Thin bootstrap that loads upstream LuaUnit, installs the TTS‑specific
     environment stubs and wires in our multi‑destination output module.
-────────────────────────────────────────────────────────────────────────────]] --
+────────────────────────────────────────────────────────────────────────────]]--
 
 local lu = require("Test.luaunit") -- upstream distribution (cached once)
 require("Test.luaunit_tts_env")    -- os/print/io stubs for MoonSharp / TTS
