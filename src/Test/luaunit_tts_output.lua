@@ -14,7 +14,7 @@ local M = require("Test.luaunit")
     TTSOutput: These are the defaults for the TTSOutput object. The defaults are:
     - chat: ChatOutput (default: enabled) uses verbose output in TAP format to the chat window.
     - log: LogOutput (default: enabled) uses low verbosity output in TEXT format to the system console.
-    - grid: GridOutput (default: enabled if hostObject exists) uses a clickable GUI grid to show test results.
+    - grid: GridOutput (default: enabled if gridOwner exists) uses a clickable GUI grid to show test results.
     - colors: color scheme for all outputs (default: see below) can easily be overridden by the user.
     - yieldFrequency: (default: 10) number of tests between each coroutine.yield
 ]]
@@ -293,7 +293,7 @@ setmetatable(GridOutput, { __index = M.genericOutput })
 
 function GridOutput.new(runner, colors)
     local t = M.genericOutput.new(runner)
-    t.hostObject = runner.hostObject
+    t.gridOwner = runner.gridOwner
     t.colors = colors or TTSOutput.colors
     t.squareIds = {}
     t.testOutputs = {}
@@ -311,7 +311,7 @@ function GridOutput:startSuite()
 
     function onClick(player, value, id)
         local testResult = M.prettystr(self.testOutputs[id])
-        local colorHex = self.hostObject.UI.getAttribute(id, "color")
+        local colorHex = self.gridOwner.UI.getAttribute(id, "color")
         printToAll(testResult, Color.fromHex(colorHex))
     end
 
@@ -336,7 +336,7 @@ function GridOutput:startSuite()
         return
     end
     testGrid.children = panels
-    self.hostObject.UI.setXmlTable(uiTable)
+    self.gridOwner.UI.setXmlTable(uiTable)
 end
 
 function GridOutput:endTest(node)
@@ -347,10 +347,10 @@ function GridOutput:endTest(node)
     self.testOutputs[id] = node
 
     local squareId = self.squareIds[completedTests]
-    self.hostObject.UI.setAttribute(squareId, "color", colorHex)
+    self.gridOwner.UI.setAttribute(squareId, "color", colorHex)
     if self.runner.result.selectedCount > 100 then
         local percent = 1 - (completedTests / self.runner.result.selectedCount)
-        self.hostObject.UI.setAttribute("TestScroll", "verticalNormalizedPosition", tostring(percent))
+        self.gridOwner.UI.setAttribute("TestScroll", "verticalNormalizedPosition", tostring(percent))
     end
 end
 
@@ -415,8 +415,8 @@ function buildTTSOutput(runner, config)
         root:add(LogOutput.new(runner, config.colors, config.log))
     end
 
-    -- GridOutput (enabled by default if hostObject exists)
-    if config.grid ~= false and runner.hostObject then
+    -- GridOutput (enabled by default if gridOwner exists)
+    if config.grid ~= false and runner.gridOwner then
         root:add(GridOutput.new(runner, config.colors))
     end
 

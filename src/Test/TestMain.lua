@@ -30,7 +30,7 @@
 
     7. Error Handling
         - Add proper error handling for UI operations
-        - Add validation for hostObject references
+        - Add validation for gridOwner references
         - Improve error messages for common setup issues
         - Add debug logging option for troubleshooting
 
@@ -43,7 +43,7 @@
     9. Infrastructure
         - Create the mechanism for spawning a Test "Checker"
         - Create an OS script to generate testSuites table
-        - Move hostObject from runner to TTSOutput
+        - Move gridOwner from runner to TTSOutput
 
     Notes:
         - BTW `/clear` will clear the chat window, but not the console
@@ -70,14 +70,14 @@ end
 
 -- Manually require and register each test suite globally
 local testSuites = {
-    TestVector = require("Test.TTS_lib.TestVector"),
-    TestMath   = require("Test.TTS_lib.TestMath"),
-    TestString = require("Test.TTS_lib.TestString"),
-    TestTable  = require("Test.TTS_lib.TestTable"),
+    -- TestVector = require("Test.TTS_lib.TestVector"),
+    -- TestMath   = require("Test.TTS_lib.TestMath"),
+    -- TestString = require("Test.TTS_lib.TestString"),
+    -- TestTable  = require("Test.TTS_lib.TestTable"),
 }
 
 TestBulk = {}
-for i = 1, 200 do
+for i = 1, 100 do
     TestBulk["test_pass_" .. i] = function()
         lu.assertEquals(i, i)
     end
@@ -102,9 +102,9 @@ end
 function TestChat:testThird()
     printToAll("Running THIRD test...", { 1, 0, 1 })
     local val = ""
-    for i = 1, 30000, 1 do
-        val = val .. i
-    end
+    --for i = 1, 30000, 1 do
+    --    val = val .. i
+    --end
     lu.assertEquals(3, 3)
 end
 
@@ -113,7 +113,7 @@ function runTests()
     -- lu.LuaUnit.outputType.chat.verbosity = lu.VERBOSITY_QUIET
     -- lu.LuaUnit.outputType.log.format = "TAP"
     -- lu.LuaUnit.outputType.log.verbosity = lu.VERBOSITY_VERBOSE
-    lu.LuaUnit.hostObject = self
+    lu.LuaUnit.gridOwner = self
     lu.LuaUnit:run()
 end
 

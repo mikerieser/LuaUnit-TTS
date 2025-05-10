@@ -2,12 +2,14 @@
     LuaUnit Bootstrap for TTS
     Thin bootstrap that loads upstream LuaUnit, installs the TTS‑specific
     environment stubs and wires in our multi‑destination output module.
-────────────────────────────────────────────────────────────────────────────]]--
+────────────────────────────────────────────────────────────────────────────]] --
 
 local lu = require("Test.luaunit") -- upstream distribution (cached once)
-require("Test.luaunit_tts_env")    -- os/print/io stubs for MoonSharp / TTS
+require("Test.luaunit_tts_env") -- os/print/io stubs for MoonSharp / TTS
 
--- Automatically run all test entrypoints in a coroutine if hostObject is set
+local scriptSelf = self
+
+-- Automatically run all test entrypoints in a coroutine if gridOwner is set
 _G.__luaunit_runner_instance = nil
 _G.__luaunit_runner_method = nil
 _G.__luaunit_runner_args = nil
@@ -26,11 +28,11 @@ for _, methodName in ipairs({ "run", "runSuite", "runSuiteByNames", "runSuiteByI
         _G.__luaunit_runner_instance = self
         _G.__luaunit_runner_method = orig
         _G.__luaunit_runner_args = { ... }
-        startLuaCoroutine(self.hostObject, "__runLuaUnitCoroutine")
+        startLuaCoroutine(scriptSelf, "__runLuaUnitCoroutine")
     end
 end
 
 lu.LuaUnit.outputType = require("Test.luaunit_tts_output")
-lu.LuaUnit.hostObject = self
+lu.LuaUnit.gridOwner = self
 
 return lu

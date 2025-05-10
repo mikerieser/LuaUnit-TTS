@@ -168,10 +168,10 @@ To show visual test progress:
 ```
 - In Lua, set:
   ```lua
-  lu.LuaUnit.hostObject = self
+  lu.LuaUnit.gridOwner = self
   ```
 
-> The `hostObject` becomes the anchor for grid placement and attribute updates.
+> The `gridOwner` becomes the anchor for grid placement and attribute updates.
 
 ---
 
@@ -217,7 +217,7 @@ However, for full control — such as explicitly specifying which test suites to
 
 ## Grid Output
 
-- The grid UI is enabled by default if `lu.LuaUnit.hostObject = self` and `outputType.grid` is not `false`.
+- The grid UI is enabled by default if `lu.LuaUnit.gridOwner = self` and `outputType.grid` is not `false`.
 - The grid shows test status and allows clicking for details.
 
 ---
@@ -225,7 +225,7 @@ However, for full control — such as explicitly specifying which test suites to
 ## Troubleshooting
 
 - **No output in chat or grid?**  
-  Make sure you set `lu.LuaUnit.hostObject = self` before calling `:run()`.
+  Make sure you set `lu.LuaUnit.gridOwner = self` before calling `:run()`.
 
 - **Want only chat or only grid?**  
   Set `lu.LuaUnit.outputType.grid = false` or `lu.LuaUnit.outputType.chat = false`.
@@ -247,14 +247,14 @@ function TestMath:test_add()
 end
 
 function runTests()
-    lu.LuaUnit.hostObject = self
+    lu.LuaUnit.gridOwner = self
     lu.LuaUnit:run()
 end
 
 function onDrop()
     runTests()
     local runner = lu.LuaUnit.new()
-    runner.hostObject = self
+    runner.gridOwner = self
     runner.testClasses = { TestExample }
     runner:runSuite()
 end
