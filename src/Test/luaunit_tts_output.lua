@@ -22,6 +22,7 @@ TTSOutput = {
     chat = { format = "TAP", verbosity = M.VERBOSITY_VERBOSE },
     log = { format = "TEXT", verbosity = M.VERBOSITY_LOW },
     grid = true,
+    gridOwner = nil,     -- set to the object that owns the UI (usually self)
     yieldFrequency = 10, -- number of tests between each coroutine.yield
 
     -- Colors used by all outputs
@@ -291,11 +292,22 @@ GridOutput = {
 }
 setmetatable(GridOutput, { __index = M.genericOutput })
 
-function GridOutput.new(runner, colors)
+function onTestSquareClick(player, value, id)
+    local runner = _G.__luaunit_runner_instance
+
+    local node = runner.result.allTests[tonumber(id)]
+    if not node then
+        printToAll("No data for test #" .. id, { 1, 0, 0 })
+        return
+    end
+
+    printToAll(M.prettystr(node), Color.fromHex(TTSOutput.colors[node.status] or TTSOutput.colors.UNKNOWN))
+end
+
+function GridOutput.new(runner, config)
     local t = M.genericOutput.new(runner)
-    t.gridOwner = runner.gridOwner
-    t.colors = colors or TTSOutput.colors
-    t.squareIds = {}
+    t.gridOwner = config.gridOwner
+    t.colors = config.colors or TTSOutput.colors
     t.testOutputs = {}
 
     -- Add color handling
@@ -307,48 +319,55 @@ function GridOutput.new(runner, colors)
 end
 
 function GridOutput:startSuite()
-    local uiTable = buildGridUI()
+    local clickFunc = "onTestSquareClick"
 
-    function onClick(player, value, id)
-        local testResult = M.prettystr(self.testOutputs[id])
-        local colorHex = self.gridOwner.UI.getAttribute(id, "color")
-        printToAll(testResult, Color.fromHex(colorHex))
+    if M.LuaUnit.outputType.scriptOwner == Global then
+        clickFunc = "Global" .. "/" .. clickFunc
     end
 
+    local uiTable = buildGridUI()
+
+    -- create one Button per test square, using GUID/functionName syntax
     local panels = {}
     local totalTests = self.runner.result.selectedCount
     for i = 1, totalTests do
-        local id = "TestSquare" .. i
-        self.squareIds[i] = id
+        local id = tostring(i) -- just "1", "2", "3", …
         table.insert(panels, {
-            tag = "Panel",
+            tag = "Button",
             attributes = {
-                id = id,
-                color = self.colors.NEUTRAL,
-                onClick = "onClick"
+                id      = id,
+                onClick = clickFunc,
+                width   = "50",
+                height  = "50",
+                color   = self.colors.NEUTRAL,
+                text    = ""
             }
         })
     end
 
+    -- attach the buttons into the GridLayout
     local testGrid = findElementById(uiTable, "TestGrid")
     if not testGrid then
         printToAll(self.__class__ .. ": TestGrid not found", Color.fromHex(self.colors.ERROR))
         return
     end
     testGrid.children = panels
+
+    -- render the assembled UI
     self.gridOwner.UI.setXmlTable(uiTable)
 end
 
 function GridOutput:endTest(node)
-    local completedTests = node.number
-    local colorHex = self:getColorForNode(node) -- Use the mixin's method
-
-    local id = "TestSquare" .. node.number
+    local colorHex = self:getColorForNode(node)
+    local id = tostring(node.number)
     self.testOutputs[id] = node
 
-    local squareId = self.squareIds[completedTests]
-    self.gridOwner.UI.setAttribute(squareId, "color", colorHex)
+    printToAll("GridOutput: " .. id .. " → " .. M.prettystr(node), Color.Orange)
+
+    self.gridOwner.UI.setAttribute(id, "color", colorHex)
+    self.gridOwner.UI.setAttribute(id, "value", colorHex)
     if self.runner.result.selectedCount > 100 then
+        local completedTests = node.number
         local percent = 1 - (completedTests / self.runner.result.selectedCount)
         self.gridOwner.UI.setAttribute("TestScroll", "verticalNormalizedPosition", tostring(percent))
     end
@@ -416,8 +435,8 @@ function buildTTSOutput(runner, config)
     end
 
     -- GridOutput (enabled by default if gridOwner exists)
-    if config.grid ~= false and runner.gridOwner then
-        root:add(GridOutput.new(runner, config.colors))
+    if config.grid ~= false and config.gridOwner then
+        root:add(GridOutput.new(runner, config))
     end
 
     if config.yieldFrequency then

@@ -33,6 +33,7 @@ for _, methodName in ipairs({ "run", "runSuite", "runSuiteByNames", "runSuiteByI
 end
 
 lu.LuaUnit.outputType = require("Test.luaunit_tts_output")
-lu.LuaUnit.gridOwner = self
+lu.LuaUnit.outputType.gridOwner = self
+lu.LuaUnit.outputType.scriptOwner = scriptSelf
 
 return lu

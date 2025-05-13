@@ -18,7 +18,6 @@
 
     5. Configuration & Defaults
         - Move configuration defaults to a single location
-        - Make palette configuration consistent across outputs
         - Add validation for configuration options
         - Document all configuration options
 
@@ -77,11 +76,11 @@ local testSuites = {
 }
 
 TestBulk = {}
-for i = 1, 100 do
-    TestBulk["test_pass_" .. i] = function()
-        lu.assertEquals(i, i)
-    end
-end
+-- for i = 1, 100 do
+--     TestBulk["test_pass_" .. i] = function()
+--         lu.assertEquals(i, i)
+--     end
+-- end
 
 for name, suite in pairs(testSuites) do
     _G[name] = suite
@@ -113,8 +112,9 @@ function runTests()
     -- lu.LuaUnit.outputType.chat.verbosity = lu.VERBOSITY_QUIET
     -- lu.LuaUnit.outputType.log.format = "TAP"
     -- lu.LuaUnit.outputType.log.verbosity = lu.VERBOSITY_VERBOSE
-    lu.LuaUnit.gridOwner = self
-    lu.LuaUnit:run()
+    -- lu.LuaUnit.outputType.gridOwner = self
+    -- lu.LuaUnit:run()
+    Global.call("runTests", { self.getGUID() })
 end
 
 function onDrop()
