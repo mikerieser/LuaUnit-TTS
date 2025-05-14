@@ -19,19 +19,19 @@ TTSOutput = {
     chat = { format = "TAP", verbosity = M.VERBOSITY_VERBOSE },
     log = { format = "TEXT", verbosity = M.VERBOSITY_LOW },
     grid = true,
-    gridOwner = nil,     -- set to the object that owns the UI (usually self)
+    gridOwner = nil, -- set to the object that owns the UI (usually self)
     yieldFrequency = 10, -- number of tests between each coroutine.yield
-
+    
     -- Colors used by all outputs
     colors = {
         [M.NodeStatus.SUCCESS] = "#00FF00", -- bright green (test passed)
-        [M.NodeStatus.FAIL] = "#FF0000",    -- bright red (test failed)
-        [M.NodeStatus.ERROR] = "#FF6600",   -- dark orange (test had runtime error)
-        [M.NodeStatus.SKIP] = "#FFFF00",    -- yellow (test skipped)
-        INFO = "#FFFDD0",                   -- cream (generic info)
-        UNKNOWN = "#FF00FF",                -- magenta
+        [M.NodeStatus.FAIL] = "#FF0000", -- bright red (test failed)
+        [M.NodeStatus.ERROR] = "#FF6600", -- dark orange (test had runtime error)
+        [M.NodeStatus.SKIP] = "#FFFF00", -- yellow (test skipped)
+        INFO = "#FFFDD0", -- cream (generic info)
+        UNKNOWN = "#FF00FF", -- magenta
     },
-
+    
     -- Factory method for LuaUnit's outputType.new() call
     new = function(runner)
         return buildTTSOutput(runner, TTSOutput)
@@ -97,12 +97,12 @@ local function createOutput(runner, colors, cfg, flushFunc)
     t.colors = colors or TTSOutput.colors
     t.verbosity = cfg.verbosity
     t.flushFunc = flushFunc
-
+    
     for k, v in pairs(_G.Emitter) do
         t[k] = v
     end
     t:init()
-
+    
     return t, baseFormatter
 end
 
@@ -129,7 +129,7 @@ function ChatOutput.new(runner, colors, cfg)
     for k, v in pairs(ColoredOutput) do
         t[k] = v
     end
-
+    
     return setmetatable(t, {
         __index = function(_, key)
             return ChatOutput[key] or baseClass[key]
@@ -154,7 +154,7 @@ function LogOutput.new(runner, colors, cfg)
         log(line)
     end
     local t, baseClass = createOutput(runner, colors, cfg, flushFunc)
-
+    
     return setmetatable(t, {
         __index = function(_, key)
             return LogOutput[key] or baseClass[key]
@@ -289,15 +289,15 @@ GridOutput = {
 }
 setmetatable(GridOutput, { __index = M.genericOutput })
 
-function onTestSquareClick(player, value, id)
+function onTestSquareClick(_player, _value, id)
     local runner = _G.__luaunit_runner_instance
-
+    
     local node = runner.result.allTests[tonumber(id)]
     if not node then
         printToAll("No data for test #" .. id, { 1, 0, 0 })
         return
     end
-
+    
     printToAll(M.prettystr(node), Color.fromHex(TTSOutput.colors[node.status] or TTSOutput.colors.UNKNOWN))
 end
 
@@ -306,24 +306,24 @@ function GridOutput.new(runner, config)
     t.gridOwner = config.gridOwner
     t.colors = config.colors or TTSOutput.colors
     t.testOutputs = {}
-
+    
     -- Add color handling
     for k, v in pairs(ColoredOutput) do
         t[k] = v
     end
-
+    
     return setmetatable(t, { __index = GridOutput })
 end
 
 function GridOutput:startSuite()
     local clickFunc = "onTestSquareClick"
-
+    
     if M.LuaUnit.outputType.scriptOwner == Global then
         clickFunc = "Global" .. "/" .. clickFunc
     end
-
+    
     local uiTable = buildGridUI()
-
+    
     -- create one Button per test square, using GUID/functionName syntax
     local panels = {}
     local totalTests = self.runner.result.selectedCount
@@ -332,16 +332,16 @@ function GridOutput:startSuite()
         table.insert(panels, {
             tag = "Button",
             attributes = {
-                id      = id,
+                id = id,
                 onClick = clickFunc,
-                width   = "50",
-                height  = "50",
-                color   = self.colors.INFO,
-                text    = ""
+                width = "50",
+                height = "50",
+                color = self.colors.INFO,
+                text = ""
             }
         })
     end
-
+    
     -- attach the buttons into the GridLayout
     local testGrid = findElementById(uiTable, "TestGrid")
     if not testGrid then
@@ -349,7 +349,7 @@ function GridOutput:startSuite()
         return
     end
     testGrid.children = panels
-
+    
     -- render the assembled UI
     self.gridOwner.UI.setXmlTable(uiTable)
 end
@@ -358,11 +358,8 @@ function GridOutput:endTest(node)
     local colorHex = self:getColorForNode(node)
     local id = tostring(node.number)
     self.testOutputs[id] = node
-
-    printToAll("GridOutput: " .. id .. " → " .. M.prettystr(node), Color.Orange)
-
+    
     self.gridOwner.UI.setAttribute(id, "color", colorHex)
-    self.gridOwner.UI.setAttribute(id, "value", colorHex)
     if self.runner.result.selectedCount > 100 then
         local completedTests = node.number
         local percent = 1 - (completedTests / self.runner.result.selectedCount)
@@ -388,8 +385,7 @@ YieldOutput.__class__ = "YieldOutput"
 --- @param runner table LuaUnit runner instance
 --- @param freq   number of tests between each coroutine.yield
 function YieldOutput.new(runner, freq)
-    -- inherit no-op lifecycle methods & emit/emitLine from genericOutput
-    local t = M.genericOutput.new(runner) -- :contentReference[oaicite:0]{index=0}:contentReference[oaicite:1]{index=1}
+    local t = M.genericOutput.new(runner)
     t.count = 0
     t.freq = freq or 10
     return setmetatable(t, YieldOutput)
@@ -420,26 +416,26 @@ end
 ---------------------------------------------------------------
 function buildTTSOutput(runner, config)
     local root = TTSMultiOutput.new(runner)
-
+    
     -- ChatOutput (enabled unless explicitly disabled)
     if config.chat ~= false then
         root:add(ChatOutput.new(runner, config.colors, config.chat))
     end
-
+    
     -- LogOutput (enabled unless explicitly disabled)
     if config.log ~= false then
         root:add(LogOutput.new(runner, config.colors, config.log))
     end
-
+    
     -- GridOutput (enabled by default if gridOwner exists)
     if config.grid ~= false and config.gridOwner then
         root:add(GridOutput.new(runner, config))
     end
-
+    
     if config.yieldFrequency then
         root:add(YieldOutput.new(runner, config.yieldFrequency))
     end
-
+    
     return root
 end
 

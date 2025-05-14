@@ -113,8 +113,8 @@ function runTests()
     -- lu.LuaUnit.outputType.log.format = "TAP"
     -- lu.LuaUnit.outputType.log.verbosity = lu.VERBOSITY_VERBOSE
     -- lu.LuaUnit.outputType.gridOwner = self
-    -- lu.LuaUnit:run()
-    Global.call("runTests", { self.getGUID() })
+    lu.LuaUnit:run()
+    -- Global.call("runTests", { self.getGUID() })
 end
 
 function onDrop()

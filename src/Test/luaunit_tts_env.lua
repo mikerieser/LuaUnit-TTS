@@ -66,9 +66,7 @@ io.stdout.write = function(_, ...)
     end
 end
 
-io.stdout.flush = function()
-    -- Already handled by Emitter
-end
+io.stdout.flush = function() end
 
 function os.getenv(key)
     local fake_env = {
@@ -83,6 +81,6 @@ os.exit = function()
     error("os.exit() is disabled in TTS")
 end
 
-io.open = function(fname, mode)
+io.open = function(_, _)
     return nil, "io.open is disabled in TTS"
 end

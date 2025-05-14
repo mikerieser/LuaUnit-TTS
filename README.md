@@ -21,18 +21,17 @@ compatible with upstream LuaUnit.
 
 ---
 
-## File Overview
+## File Structure
 
 All examples in this README.md assume the following folder structure.
 
 ```
 Test/                                # Top-level test directory
 ├── luaunit.lua                      # Core LuaUnit framework
-├── luaunit_tts.lua                  # TTS-compatible test runner (what you require)
+├── luaunit_tts.lua                  # TTS-compatible test runner (what you `require`)
 ├── luaunit_tts_env.lua              # MoonSharp stubs for os/io/print
-├── luaunit_tts_output.lua           # Grid + chat output handler
-├── luaunit_tts_output.xml           # Grid layout (include this in your object)
-└── TestMain.lua                     # Main test entry point for all test files
+├── luaunit_tts_output.lua           # Multi-destination output handler
+└── TestMain.lua                     # Example runner script
 ```
 
 ---
@@ -44,10 +43,7 @@ e.g. Rolandostar's TTS Lua VSCode plugin.
 
 1. Spawn an object to host your test runner.</br>
    (e.g. a Checker from *Objects → Components → Checkers → White*).
-1. Add the XML layout to that object’s scripting panel.
-   ```xml
-   <Include src="Test/luaunit_tts_output.xml"/>
-   ```
+ 
 1. Add this Lua script to the object:
    ```lua
    require("Test.TestMain")
@@ -162,10 +158,6 @@ lu.LuaUnit.outputType.chat.format = "TEXT"
 
 To show visual test progress:
 
-- Include the grid layout XML in your object:
-  ```xml
-  <Include src="Test/luaunit_tts_output.xml"/>
-```
 - In Lua, set:
   ```lua
   lu.LuaUnit.gridOwner = self
