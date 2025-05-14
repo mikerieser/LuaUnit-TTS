@@ -6,18 +6,15 @@
 
 local M = require("Test.luaunit")
 
----------------------------------------------------------------
--- Defaults: color scheme, chat, system log, gui
----------------------------------------------------------------
-
 --[[
-    TTSOutput: These are the defaults for the TTSOutput object. The defaults are:
-    - chat: ChatOutput (default: enabled) uses verbose output in TAP format to the chat window.
-    - log: LogOutput (default: enabled) uses low verbosity output in TEXT format to the system console.
-    - grid: GridOutput (default: enabled if gridOwner exists) uses a clickable GUI grid to show test results.
-    - colors: color scheme for all outputs (default: see below) can easily be overridden by the user.
-    - yieldFrequency: (default: 10) number of tests between each coroutine.yield
+    TTSOutput: These are the defaults for the TTSOutput object:
+    * chat: ChatOutput (default: enabled) uses verbose output in TAP format to the chat window.
+    * log: LogOutput (default: enabled) uses low verbosity output in TEXT format to the system console.
+    * grid: GridOutput (default: enabled if gridOwner exists) uses a clickable GUI grid to show test results.
+    * colors: color scheme for all outputs (default: see below) can easily be overridden by the user.
+    * yieldFrequency: (default: 10) number of tests between each coroutine.yield
 ]]
+--- @class TTSOutput: genericOutput
 TTSOutput = {
     chat = { format = "TAP", verbosity = M.VERBOSITY_VERBOSE },
     log = { format = "TEXT", verbosity = M.VERBOSITY_LOW },
@@ -32,9 +29,6 @@ TTSOutput = {
         [M.NodeStatus.ERROR] = "#FF6600",   -- dark orange (test had runtime error)
         [M.NodeStatus.SKIP] = "#FFFF00",    -- yellow (test skipped)
         INFO = "#FFFDD0",                   -- cream (generic info)
-        START = "#FFFF99",                  -- light yellow (suite start)
-        FINISH = "#FFFF99",                 -- light yellow (suite end)
-        NEUTRAL = "#FFFFFF",                -- white (grid squares before status)
         UNKNOWN = "#FF00FF",                -- magenta
     },
 
@@ -47,14 +41,15 @@ TTSOutput = {
 --[[────────────────────────────────────────────────────────────────────────────
     TTSMultiOutput: Composite root that delegates to child outputs
 ────────────────────────────────────────────────────────────────────────────]] --
+--- @class TTSMultiOutput: genericOutput
 local TTSMultiOutput = {}
-TTSMultiOutput.__index = TTSMultiOutput -- Ensure methods are accessible in TTSMultiOutput
-setmetatable(TTSMultiOutput, { __index = M.genericOutput }) -- Inherit from genericOutput
+TTSMultiOutput.__index = TTSMultiOutput
+setmetatable(TTSMultiOutput, { __index = M.genericOutput })
 TTSMultiOutput.__class__ = "TTSMultiOutput"
 
 function TTSMultiOutput.new(runner)
     local t = M.genericOutput.new(runner)
-    t.children = {} -- Initialize an empty list of children
+    t.children = {}
     return setmetatable(t, TTSMultiOutput)
 end
 
@@ -92,8 +87,7 @@ setmetatable(TTSMultiOutput, {
     ├── DIRECT OUTPUTS (special destinations)
     │   └── GridOutput (visual GUI grid, subclasses genericOutput directly)
     │
-    └── YieldOutput (controls yieldFrequency)
-
+    └── YieldOutput (controls coroutine yieldFrequency)
 ────────────────────────────────────────────────────────────────────────────]] --
 
 -- createOutput for the text-based formatters (TextOutput/TapOutput)
@@ -116,13 +110,14 @@ end
 local ColoredOutput = {
     getColorForNode = function(self, node)
         local status = node and node.status or "INFO"
-        return self.colors[status] or self.colors.NEUTRAL
+        return self.colors[status] or self.colors.INFO
     end
 }
 
 --[[────────────────────────────────────────────────────────────────────────────
-    ChatOutput: Colored chat window output using TextOutput/TapOutput formatting
+    ChatOutput: Colored chat window output wrapping TextOutput or TapOutput formatting
 ────────────────────────────────────────────────────────────────────────────]] --
+--- @class ChatOutput wraps either TextOutput or TapOutput
 local ChatOutput = {}
 ChatOutput.__index = ChatOutput
 ChatOutput.__class__ = "ChatOutput"
@@ -136,7 +131,7 @@ function ChatOutput.new(runner, colors, cfg)
     end
 
     return setmetatable(t, {
-        __index = function(instance, key)
+        __index = function(_, key)
             return ChatOutput[key] or baseClass[key]
         end
     })
@@ -147,8 +142,9 @@ function ChatOutput:flush(line)
 end
 
 --[[────────────────────────────────────────────────────────────────────────────
-    LogOutput: System console output using TapOutput formatting
+    LogOutput: System console output wrapping TextOutput or TapOutput formatting
 ────────────────────────────────────────────────────────────────────────────]] --
+--- @class LogOutput wraps either TextOutput or TapOutput
 local LogOutput = {}
 LogOutput.__index = LogOutput
 LogOutput.__class__ = "LogOutput"
@@ -157,10 +153,10 @@ function LogOutput.new(runner, colors, cfg)
     local flushFunc = function(line)
         log(line)
     end
-    local t, baseClass = createOutput(runner, colors, cfg, flushFunc) -- Default to TEXT for experts
+    local t, baseClass = createOutput(runner, colors, cfg, flushFunc)
 
     return setmetatable(t, {
-        __index = function(instance, key)
+        __index = function(_, key)
             return LogOutput[key] or baseClass[key]
         end
     })
@@ -287,6 +283,7 @@ local function buildGridUI()
     }
 end
 
+--- @class GridOutput: genericOutput
 GridOutput = {
     __class__ = "GridOutput"
 }
@@ -339,7 +336,7 @@ function GridOutput:startSuite()
                 onClick = clickFunc,
                 width   = "50",
                 height  = "50",
-                color   = self.colors.NEUTRAL,
+                color   = self.colors.INFO,
                 text    = ""
             }
         })
@@ -388,7 +385,7 @@ local YieldOutput = {}
 YieldOutput.__index = YieldOutput
 YieldOutput.__class__ = "YieldOutput"
 
---- @param runner LuaUnit runner instance
+--- @param runner table LuaUnit runner instance
 --- @param freq   number of tests between each coroutine.yield
 function YieldOutput.new(runner, freq)
     -- inherit no-op lifecycle methods & emit/emitLine from genericOutput
@@ -398,28 +395,28 @@ function YieldOutput.new(runner, freq)
     return setmetatable(t, YieldOutput)
 end
 
-function YieldOutput:startSuite(node)
+function YieldOutput:startSuite(_)
     coroutine.yield(0)
 end
 
-function YieldOutput:endSuite(node)
+function YieldOutput:endSuite(_)
     coroutine.yield(0)
 end
 
 --- Called after each test; yields every self.freq tests.
-function YieldOutput:endTest(node)
+function YieldOutput:endTest(_)
     self.count = self.count + 1
     if self.count % self.freq == 0 then
         coroutine.yield(0)
     end
 end
 
-function YieldOutput:endClass(node)
+function YieldOutput:endClass(_)
     coroutine.yield(0)
 end
 
 ---------------------------------------------------------------
--- Factory method to build a complete output graph
+-- Factory method to build the complete output graph
 ---------------------------------------------------------------
 function buildTTSOutput(runner, config)
     local root = TTSMultiOutput.new(runner)

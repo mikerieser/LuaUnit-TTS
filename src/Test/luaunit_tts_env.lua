@@ -1,15 +1,8 @@
 --[[────────────────────────────────────────────────────────────────────────────
-    LuaUnit Environment Shim for TTS
-    Provides TTS-compatible implementations of standard Lua I/O functions
-    needed by LuaUnit (print, io.stdout, os.getenv, etc.)
-────────────────────────────────────────────────────────────────────────────]]--
-
--- luaunit_tts_env.lua
--- TTS-safe LuaUnit output handling with buffered print and dynamic color
-
---[[────────────────────────────────────────────────────────────────────────────
-    Emitter: Buffered output with tab expansion
-    Core functionality used by both direct output and formatters
+    LuaUnit Bootstrap for TTS
+    Thin bootstrap that loads upstream LuaUnit, installs the TTS‑specific
+    environment stubs, wires in the multi‑destination output module, and
+    wraps LuaUnit's run methods to allow for a coroutine to update the output.
 ────────────────────────────────────────────────────────────────────────────]]--
 local Emitter = {}
 
@@ -51,7 +44,7 @@ _G.Emitter = Emitter
 -- Create a global output emitter for print/io
 local stdoutEmitter = setmetatable({}, { __index = Emitter })
 stdoutEmitter:init()
-stdoutEmitter.flush = function(self, line)
+stdoutEmitter.flush = function(_, line)
     printToAll(line)
 end
 

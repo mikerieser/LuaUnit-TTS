@@ -4,12 +4,11 @@
     environment stubs and wires in our multi‑destination output module.
 ────────────────────────────────────────────────────────────────────────────]] --
 
-local lu = require("Test.luaunit") -- upstream distribution (cached once)
-require("Test.luaunit_tts_env") -- os/print/io stubs for MoonSharp / TTS
+local lu = require("Test.luaunit")
+require("Test.luaunit_tts_env")
 
 local scriptSelf = self
 
--- Automatically run all test entrypoints in a coroutine if gridOwner is set
 _G.__luaunit_runner_instance = nil
 _G.__luaunit_runner_method = nil
 _G.__luaunit_runner_args = nil
