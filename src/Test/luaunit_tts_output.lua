@@ -19,19 +19,19 @@ TTSOutput = {
     chat = { format = "TAP", verbosity = M.VERBOSITY_VERBOSE },
     log = { format = "TEXT", verbosity = M.VERBOSITY_LOW },
     grid = true,
-    gridOwner = nil, -- set to the object that owns the UI (usually self)
+    gridOwner = nil,     -- set to the object that owns the UI (usually self)
     yieldFrequency = 10, -- number of tests between each coroutine.yield
-    
+
     -- Colors used by all outputs
     colors = {
         [M.NodeStatus.SUCCESS] = "#00FF00", -- bright green (test passed)
-        [M.NodeStatus.FAIL] = "#FF0000", -- bright red (test failed)
-        [M.NodeStatus.ERROR] = "#FF6600", -- dark orange (test had runtime error)
-        [M.NodeStatus.SKIP] = "#FFFF00", -- yellow (test skipped)
-        INFO = "#FFFDD0", -- cream (generic info)
-        UNKNOWN = "#FF00FF", -- magenta
+        [M.NodeStatus.FAIL] = "#FF0000",    -- bright red (test failed)
+        [M.NodeStatus.ERROR] = "#FF6600",   -- dark orange (test had runtime error)
+        [M.NodeStatus.SKIP] = "#FFFF00",    -- yellow (test skipped)
+        INFO = "#FFFDD0",                   -- cream (generic info)
+        UNKNOWN = "#FF00FF",                -- magenta
     },
-    
+
     -- Factory method for LuaUnit's outputType.new() call
     new = function(runner)
         return buildTTSOutput(runner, TTSOutput)
@@ -42,10 +42,9 @@ TTSOutput = {
     TTSMultiOutput: Composite root that delegates to child outputs
 ────────────────────────────────────────────────────────────────────────────]] --
 --- @class TTSMultiOutput: genericOutput
-local TTSMultiOutput = {}
+local TTSMultiOutput = { __class__ = "TTSMultiOutput" }
 TTSMultiOutput.__index = TTSMultiOutput
 setmetatable(TTSMultiOutput, { __index = M.genericOutput })
-TTSMultiOutput.__class__ = "TTSMultiOutput"
 
 function TTSMultiOutput.new(runner)
     local t = M.genericOutput.new(runner)
@@ -91,80 +90,65 @@ setmetatable(TTSMultiOutput, {
 ────────────────────────────────────────────────────────────────────────────]] --
 
 -- createOutput for the text-based formatters (TextOutput/TapOutput)
-local function createOutput(runner, colors, cfg, flushFunc)
+local function createOutput(runner, colors, cfg)
     local baseFormatter = (cfg.format == "TAP") and M.TapOutput or M.TextOutput
     local t = baseFormatter.new(runner)
     t.colors = colors or TTSOutput.colors
-    t.verbosity = cfg.verbosity
-    t.flushFunc = flushFunc
-    
-    for k, v in pairs(_G.Emitter) do
-        t[k] = v
-    end
+    t.verbosity = cfg.verbosity or M.VERBOSITY_DEFAULT
+
+    for k, v in pairs(_G.Emitter) do t[k] = v end
     t:init()
-    
+
     return t, baseFormatter
 end
 
--- Add ColoredOutput mixin
-local ColoredOutput = {
-    getColorForNode = function(self, node)
-        local status = node and node.status or "INFO"
-        return self.colors[status] or self.colors.INFO
+local _colorCache = {}
+local function colorFromHex(hex)
+    local c = _colorCache[hex]
+    if not c then
+        c = Color.fromHex(hex)
+        _colorCache[hex] = c
     end
-}
+    return c
+end
+
+local function statusColor(colors, status)
+    return colors[status] or colors.INFO
+end
 
 --[[────────────────────────────────────────────────────────────────────────────
     ChatOutput: Colored chat window output wrapping TextOutput or TapOutput formatting
 ────────────────────────────────────────────────────────────────────────────]] --
 --- @class ChatOutput wraps either TextOutput or TapOutput
-local ChatOutput = {}
+local ChatOutput = { __class__ = "ChatOutput" }
 ChatOutput.__index = ChatOutput
-ChatOutput.__class__ = "ChatOutput"
 
 function ChatOutput.new(runner, colors, cfg)
-    local t, baseClass = createOutput(runner, colors, cfg, function(line, color)
-        printToAll(line, color)
-    end)
-    for k, v in pairs(ColoredOutput) do
-        t[k] = v
-    end
-    
-    return setmetatable(t, {
-        __index = function(_, key)
-            return ChatOutput[key] or baseClass[key]
-        end
-    })
+    local self, base = createOutput(runner, colors, cfg)
+    setmetatable(self, { __index = function(_, k) return ChatOutput[k] or base[k] end })
+    return self
 end
 
 function ChatOutput:flush(line)
-    self.flushFunc(line, Color.fromHex(self:getColorForNode(self.result.currentNode)))
+    local node = self.result.currentNode
+    local hex  = statusColor(self.colors, node and node.status or "INFO")
+    printToAll(line, colorFromHex(hex))
 end
 
 --[[────────────────────────────────────────────────────────────────────────────
     LogOutput: System console output wrapping TextOutput or TapOutput formatting
 ────────────────────────────────────────────────────────────────────────────]] --
 --- @class LogOutput wraps either TextOutput or TapOutput
-local LogOutput = {}
+local LogOutput = { __class__ = "LogOutput" }
 LogOutput.__index = LogOutput
-LogOutput.__class__ = "LogOutput"
 
 function LogOutput.new(runner, colors, cfg)
-    local flushFunc = function(line)
-        log(line)
-    end
-    local t, baseClass = createOutput(runner, colors, cfg, flushFunc)
-    
-    return setmetatable(t, {
-        __index = function(_, key)
-            return LogOutput[key] or baseClass[key]
-        end
-    })
+    local self, base = createOutput(runner, colors, cfg)
+    setmetatable(self, { __index = function(_, k) return LogOutput[k] or base[k] end })
+    return self
 end
 
-function LogOutput:flush(line)
-    self.flushFunc(line)
-end
+function LogOutput:flush(line) log(line) end
 
 --[[────────────────────────────────────────────────────────────────────────────
     GridOutput: Grid-based UI output for TTS
@@ -284,20 +268,18 @@ local function buildGridUI()
 end
 
 --- @class GridOutput: genericOutput
-GridOutput = {
-    __class__ = "GridOutput"
-}
+GridOutput = { __class__ = "GridOutput" }
 setmetatable(GridOutput, { __index = M.genericOutput })
 
 function onTestSquareClick(_player, _value, id)
     local runner = _G.__luaunit_runner_instance
-    
+
     local node = runner.result.allTests[tonumber(id)]
     if not node then
         printToAll("No data for test #" .. id, { 1, 0, 0 })
         return
     end
-    
+
     printToAll(M.prettystr(node), Color.fromHex(TTSOutput.colors[node.status] or TTSOutput.colors.UNKNOWN))
 end
 
@@ -305,30 +287,23 @@ function GridOutput.new(runner, config)
     local t = M.genericOutput.new(runner)
     t.gridOwner = config.gridOwner
     t.colors = config.colors or TTSOutput.colors
-    t.testOutputs = {}
-    
-    -- Add color handling
-    for k, v in pairs(ColoredOutput) do
-        t[k] = v
-    end
-    
     return setmetatable(t, { __index = GridOutput })
 end
 
 function GridOutput:startSuite()
     local clickFunc = "onTestSquareClick"
-    
+
     if M.LuaUnit.outputType.scriptOwner == Global then
         clickFunc = "Global" .. "/" .. clickFunc
     end
-    
+
     local uiTable = buildGridUI()
-    
+
     -- create one Button per test square, using GUID/functionName syntax
     local panels = {}
     local totalTests = self.runner.result.selectedCount
     for i = 1, totalTests do
-        local id = tostring(i) -- just "1", "2", "3", …
+        local id = tostring(i)
         table.insert(panels, {
             tag = "Button",
             attributes = {
@@ -341,7 +316,7 @@ function GridOutput:startSuite()
             }
         })
     end
-    
+
     -- attach the buttons into the GridLayout
     local testGrid = findElementById(uiTable, "TestGrid")
     if not testGrid then
@@ -349,20 +324,18 @@ function GridOutput:startSuite()
         return
     end
     testGrid.children = panels
-    
+
     -- render the assembled UI
     self.gridOwner.UI.setXmlTable(uiTable)
 end
 
 function GridOutput:endTest(node)
-    local colorHex = self:getColorForNode(node)
-    local id = tostring(node.number)
-    self.testOutputs[id] = node
-    
-    self.gridOwner.UI.setAttribute(id, "color", colorHex)
+    local id  = tostring(node.number)
+    local hex = statusColor(self.colors, node.status)
+    self.gridOwner.UI.setAttribute(id, "color", hex)
     if self.runner.result.selectedCount > 100 then
         local completedTests = node.number
-        local percent = 1 - (completedTests / self.runner.result.selectedCount)
+        local percent = 1 - (completedTests / self:totalTests())
         self.gridOwner.UI.setAttribute("TestScroll", "verticalNormalizedPosition", tostring(percent))
     end
 end
@@ -378,17 +351,13 @@ end
     hit when used with the GridOutput. So, if you don't need it, set it to 0.
 ────────────────────────────────────────────────────────────────────────────]] --
 --- @class YieldOutput: genericOutput
-local YieldOutput = {}
+local YieldOutput = { __class__ = "YieldOutput" }
 YieldOutput.__index = YieldOutput
-YieldOutput.__class__ = "YieldOutput"
 
 --- @param runner table LuaUnit runner instance
 --- @param freq   number of tests between each coroutine.yield
-function YieldOutput.new(runner, freq)
-    local t = M.genericOutput.new(runner)
-    t.count = 0
-    t.freq = freq or 10
-    return setmetatable(t, YieldOutput)
+function YieldOutput.new(_, freq)
+    return setmetatable({ freq = freq, n = 0 }, YieldOutput)
 end
 
 function YieldOutput:startSuite(_)
@@ -399,43 +368,36 @@ function YieldOutput:endSuite(_)
     coroutine.yield(0)
 end
 
---- Called after each test; yields every self.freq tests.
 function YieldOutput:endTest(_)
-    self.count = self.count + 1
-    if self.count % self.freq == 0 then
-        coroutine.yield(0)
-    end
-end
-
-function YieldOutput:endClass(_)
-    coroutine.yield(0)
+    self.n = self.n + 1
+    if self.n % self.freq == 0 then coroutine.yield(0) end
 end
 
 ---------------------------------------------------------------
 -- Factory method to build the complete output graph
 ---------------------------------------------------------------
-function buildTTSOutput(runner, config)
+function buildTTSOutput(runner, cfg)
     local root = TTSMultiOutput.new(runner)
-    
+
     -- ChatOutput (enabled unless explicitly disabled)
-    if config.chat ~= false then
-        root:add(ChatOutput.new(runner, config.colors, config.chat))
+    if cfg.chat ~= false then
+        root:add(ChatOutput.new(runner, cfg.colors, cfg.chat))
     end
-    
+
     -- LogOutput (enabled unless explicitly disabled)
-    if config.log ~= false then
-        root:add(LogOutput.new(runner, config.colors, config.log))
+    if cfg.log ~= false then
+        root:add(LogOutput.new(runner, cfg.colors, cfg.log))
     end
-    
+
     -- GridOutput (enabled by default if gridOwner exists)
-    if config.grid ~= false and config.gridOwner then
-        root:add(GridOutput.new(runner, config))
+    if cfg.grid ~= false and cfg.gridOwner then
+        root:add(GridOutput.new(runner, cfg))
     end
-    
-    if config.yieldFrequency then
-        root:add(YieldOutput.new(runner, config.yieldFrequency))
+
+    if cfg.yieldFrequency then
+        root:add(YieldOutput.new(runner, cfg.yieldFrequency))
     end
-    
+
     return root
 end
 
