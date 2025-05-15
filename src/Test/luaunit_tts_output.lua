@@ -301,7 +301,7 @@ function GridOutput:startSuite()
 
     -- create one Button per test square, using GUID/functionName syntax
     local panels = {}
-    local totalTests = self.runner.result.selectedCount
+    local totalTests = self:totalTests()
     for i = 1, totalTests do
         local id = tostring(i)
         table.insert(panels, {
@@ -333,7 +333,7 @@ function GridOutput:endTest(node)
     local id  = tostring(node.number)
     local hex = statusColor(self.colors, node.status)
     self.gridOwner.UI.setAttribute(id, "color", hex)
-    if self.runner.result.selectedCount > 100 then
+    if self:totalTests() > 100 then
         local completedTests = node.number
         local percent = 1 - (completedTests / self:totalTests())
         self.gridOwner.UI.setAttribute("TestScroll", "verticalNormalizedPosition", tostring(percent))
