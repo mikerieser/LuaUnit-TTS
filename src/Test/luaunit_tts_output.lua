@@ -19,19 +19,19 @@ TTSOutput = {
     chat = { format = "TAP", verbosity = M.VERBOSITY_VERBOSE },
     log = { format = "TEXT", verbosity = M.VERBOSITY_LOW },
     grid = true,
-    gridOwner = nil, -- set to the object that owns the UI (usually self)
+    gridOwner = nil,     -- set to the object that owns the UI (usually self)
     yieldFrequency = 10, -- number of tests between each coroutine.yield
-    
+
     -- Colors used by all outputs
     colors = {
         [M.NodeStatus.SUCCESS] = "#00FF00", -- bright green (test passed)
-        [M.NodeStatus.FAIL] = "#FF0000", -- bright red (test failed)
-        [M.NodeStatus.ERROR] = "#FF6600", -- dark orange (test had runtime error)
-        [M.NodeStatus.SKIP] = "#FFFF00", -- yellow (test skipped)
-        INFO = "#FFFDD0", -- cream (generic info)
-        UNKNOWN = "#FF00FF", -- magenta
+        [M.NodeStatus.FAIL] = "#FF0000",    -- bright red (test failed)
+        [M.NodeStatus.ERROR] = "#FF6600",   -- dark orange (test had runtime error)
+        [M.NodeStatus.SKIP] = "#FFFF00",    -- yellow (test skipped)
+        INFO = "#FFFDD0",                   -- cream (generic info)
+        UNKNOWN = "#FF00FF",                -- magenta
     },
-    
+
     -- Factory method for LuaUnit's outputType.new() call
     new = function(runner)
         return buildTTSOutput(runner, TTSOutput)
@@ -93,17 +93,19 @@ local FormatterDecorator = {}
 function FormatterDecorator._init(decorator, runner, colors, config)
     local formatter = (config.format == "TAP") and M.TapOutput or M.TextOutput
     local self = formatter.new(runner)
-    
+
     self.colors = colors or TTSOutput.colors
     self.verbosity = config.verbosity or M.VERBOSITY_DEFAULT
     for k, v in pairs(_G.Emitter) do
         self[k] = v
     end
     self:init()
-    
-    return setmetatable(self, { __index = function(_, k)
-        return decorator[k] or formatter[k]
-    end })
+
+    return setmetatable(self, {
+        __index = function(_, k)
+            return decorator[k] or formatter[k]
+        end
+    })
 end
 
 local _colorCache = {}
@@ -127,8 +129,8 @@ end
 local ChatOutput = { __class__ = "ChatOutput" }
 ChatOutput.__index = ChatOutput
 
-function ChatOutput.new(runner, colors, cfg)
-    return FormatterDecorator._init(ChatOutput, runner, colors, cfg)
+function ChatOutput.new(runner, colors, config)
+    return FormatterDecorator._init(ChatOutput, runner, colors, config)
 end
 
 function ChatOutput:flush(line)
@@ -144,8 +146,8 @@ end
 local LogOutput = { __class__ = "LogOutput" }
 LogOutput.__index = LogOutput
 
-function LogOutput.new(runner, colors, cfg)
-    return FormatterDecorator._init(LogOutput, runner, colors, cfg)
+function LogOutput.new(runner, colors, config)
+    return FormatterDecorator._init(LogOutput, runner, colors, config)
 end
 
 function LogOutput:flush(line)
@@ -155,22 +157,6 @@ end
 --[[────────────────────────────────────────────────────────────────────────────
     GridOutput: Grid-based UI output for TTS
 ────────────────────────────────────────────────────────────────────────────]] --
--- Utility function to recursively find an element by its ID
-local function findElementById(elements, id)
-    for _, element in ipairs(elements or {}) do
-        if element.attributes and element.attributes.id == id then
-            return element
-        end
-        if element.children then
-            local found = findElementById(element.children, id)
-            if found then
-                return found
-            end
-        end
-    end
-    return nil
-end
-
 local function buildGridUI()
     local testGrid = {
         tag = "GridLayout",
@@ -268,7 +254,7 @@ local function buildGridUI()
             }
         }
     }
-    
+
     return ui, testGrid
 end
 
@@ -276,15 +262,15 @@ end
 GridOutput = { __class__ = "GridOutput" }
 setmetatable(GridOutput, { __index = M.genericOutput })
 
-function onTestSquareClick(_player, _value, id)
+function onTestSquareClick(_, _, id)
     local runner = _G.__luaunit_runner_instance
-    
+
     local node = runner.result.allTests[tonumber(id)]
     if not node then
         printToAll("No data for test #" .. id, { 1, 0, 0 })
         return
     end
-    
+
     printToAll(M.prettystr(node), Color.fromHex(TTSOutput.colors[node.status] or TTSOutput.colors.UNKNOWN))
 end
 
@@ -297,13 +283,13 @@ end
 
 function GridOutput:startSuite()
     local clickFunc = "onTestSquareClick"
-    
+
     if M.LuaUnit.outputType.scriptOwner == Global then
         clickFunc = "Global" .. "/" .. clickFunc
     end
-    
+
     local uiTable, testGrid = buildGridUI()
-    
+
     local totalTests = self:totalTests()
     for i = 1, totalTests do
         local id = tostring(i)
@@ -318,7 +304,7 @@ function GridOutput:startSuite()
             }
         })
     end
-    
+
     self.gridOwner.UI.setXmlTable(uiTable)
 end
 
@@ -347,9 +333,8 @@ end
 local YieldOutput = { __class__ = "YieldOutput" }
 YieldOutput.__index = YieldOutput
 
---- @param runner table LuaUnit runner instance
 --- @param freq   number of tests between each coroutine.yield
-function YieldOutput.new(_, freq)
+function YieldOutput.new(freq)
     return setmetatable({ freq = freq, n = 0 }, YieldOutput)
 end
 
@@ -371,28 +356,28 @@ end
 ---------------------------------------------------------------
 -- Factory method to build the complete output graph
 ---------------------------------------------------------------
-function buildTTSOutput(runner, cfg)
+function buildTTSOutput(runner, config)
     local root = TTSMultiOutput.new(runner)
-    
+
     -- ChatOutput (enabled unless explicitly disabled)
-    if cfg.chat ~= false then
-        root:add(ChatOutput.new(runner, cfg.colors, cfg.chat))
+    if config.chat ~= false then
+        root:add(ChatOutput.new(runner, config.colors, config.chat))
     end
-    
+
     -- LogOutput (enabled unless explicitly disabled)
-    if cfg.log ~= false then
-        root:add(LogOutput.new(runner, cfg.colors, cfg.log))
+    if config.log ~= false then
+        root:add(LogOutput.new(runner, config.colors, config.log))
     end
-    
+
     -- GridOutput (enabled by default if gridOwner exists)
-    if cfg.grid ~= false and cfg.gridOwner then
-        root:add(GridOutput.new(runner, cfg))
+    if config.grid ~= false and config.gridOwner then
+        root:add(GridOutput.new(runner, config))
     end
-    
-    if cfg.yieldFrequency then
-        root:add(YieldOutput.new(runner, cfg.yieldFrequency))
+
+    if config.yieldFrequency then
+        root:add(YieldOutput.new(config.yieldFrequency))
     end
-    
+
     return root
 end
 
