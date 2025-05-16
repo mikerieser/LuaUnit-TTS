@@ -19,19 +19,19 @@ TTSOutput = {
     chat = { format = "TAP", verbosity = M.VERBOSITY_VERBOSE },
     log = { format = "TEXT", verbosity = M.VERBOSITY_LOW },
     grid = true,
-    gridOwner = nil,     -- set to the object that owns the UI (usually self)
+    gridOwner = nil, -- set to the object that owns the UI (usually self)
     yieldFrequency = 10, -- number of tests between each coroutine.yield
-
+    
     -- Colors used by all outputs
     colors = {
         [M.NodeStatus.SUCCESS] = "#00FF00", -- bright green (test passed)
-        [M.NodeStatus.FAIL] = "#FF0000",    -- bright red (test failed)
-        [M.NodeStatus.ERROR] = "#FF6600",   -- dark orange (test had runtime error)
-        [M.NodeStatus.SKIP] = "#FFFF00",    -- yellow (test skipped)
-        INFO = "#FFFDD0",                   -- cream (generic info)
-        UNKNOWN = "#FF00FF",                -- magenta
+        [M.NodeStatus.FAIL] = "#FF0000", -- bright red (test failed)
+        [M.NodeStatus.ERROR] = "#FF6600", -- dark orange (test had runtime error)
+        [M.NodeStatus.SKIP] = "#FFFF00", -- yellow (test skipped)
+        INFO = "#FFFDD0", -- cream (generic info)
+        UNKNOWN = "#FF00FF", -- magenta
     },
-
+    
     -- Factory method for LuaUnit's outputType.new() call
     new = function(runner)
         return buildTTSOutput(runner, TTSOutput)
@@ -73,33 +73,37 @@ setmetatable(TTSMultiOutput, {
     Output Class Hierarchy:
 
     M.genericOutput (LuaUnit base)
-    ├── TTSMultiOutput (composite root, delegates to children)
+    ├── TTSMultiOutput (TTS port - composite, delegates to children)
     │
-    ├── OUTPUT FORMATTERS (what to output)
+    ├── OUTPUT FORMATTERS (LuaUnit base - what to output)
     │   ├── M.TextOutput (human readable format)
     │   └── M.TapOutput (human/machine readable format)
     │
-    ├── OUTPUT DECORATORS (where to output)
+    ├── OUTPUT DECORATORS (TTS port - where to output)
     │   ├── ChatOutput (decorates any formatter with colored output to chat window)
     │   └── LogOutput (decorates any formatter with output to system console)
     │
-    ├── DIRECT OUTPUTS (special destinations)
+    ├── DIRECT OUTPUTS (TTS port - special destinations)
     │   └── GridOutput (visual GUI grid, subclasses genericOutput directly)
     │
-    └── YieldOutput (controls coroutine yieldFrequency)
+    └── YieldOutput (TTS port - controls coroutine yieldFrequency)
 ────────────────────────────────────────────────────────────────────────────]] --
 
--- createOutput for the text-based formatters (TextOutput/TapOutput)
-local function createOutput(runner, colors, cfg)
-    local baseFormatter = (cfg.format == "TAP") and M.TapOutput or M.TextOutput
-    local t = baseFormatter.new(runner)
-    t.colors = colors or TTSOutput.colors
-    t.verbosity = cfg.verbosity or M.VERBOSITY_DEFAULT
-
-    for k, v in pairs(_G.Emitter) do t[k] = v end
-    t:init()
-
-    return t, baseFormatter
+local FormatterDecorator = {}
+function FormatterDecorator._init(decorator, runner, colors, config)
+    local formatter = (config.format == "TAP") and M.TapOutput or M.TextOutput
+    local self = formatter.new(runner)
+    
+    self.colors = colors or TTSOutput.colors
+    self.verbosity = config.verbosity or M.VERBOSITY_DEFAULT
+    for k, v in pairs(_G.Emitter) do
+        self[k] = v
+    end
+    self:init()
+    
+    return setmetatable(self, { __index = function(_, k)
+        return decorator[k] or formatter[k]
+    end })
 end
 
 local _colorCache = {}
@@ -124,14 +128,12 @@ local ChatOutput = { __class__ = "ChatOutput" }
 ChatOutput.__index = ChatOutput
 
 function ChatOutput.new(runner, colors, cfg)
-    local self, base = createOutput(runner, colors, cfg)
-    setmetatable(self, { __index = function(_, k) return ChatOutput[k] or base[k] end })
-    return self
+    return FormatterDecorator._init(ChatOutput, runner, colors, cfg)
 end
 
 function ChatOutput:flush(line)
     local node = self.result.currentNode
-    local hex  = statusColor(self.colors, node and node.status or "INFO")
+    local hex = statusColor(self.colors, node and node.status or "INFO")
     printToAll(line, colorFromHex(hex))
 end
 
@@ -143,12 +145,12 @@ local LogOutput = { __class__ = "LogOutput" }
 LogOutput.__index = LogOutput
 
 function LogOutput.new(runner, colors, cfg)
-    local self, base = createOutput(runner, colors, cfg)
-    setmetatable(self, { __index = function(_, k) return LogOutput[k] or base[k] end })
-    return self
+    return FormatterDecorator._init(LogOutput, runner, colors, cfg)
 end
 
-function LogOutput:flush(line) log(line) end
+function LogOutput:flush(line)
+    log(line)
+end
 
 --[[────────────────────────────────────────────────────────────────────────────
     GridOutput: Grid-based UI output for TTS
@@ -170,8 +172,21 @@ local function findElementById(elements, id)
 end
 
 local function buildGridUI()
-    return
-    {
+    local testGrid = {
+        tag = "GridLayout",
+        attributes = {
+            id = "TestGrid",
+            cellSize = "50 50",
+            spacing = "6 6",
+            padding = "10 10 10 10",
+            constraint = "FixedColumnCount",
+            constraintCount = "10",
+            color = "#222222",
+            alignment = "UpperCenter"
+        },
+        children = {}
+    }
+    local ui = {
         {
             tag = "Defaults",
             attributes = {},
@@ -241,19 +256,7 @@ local function buildGridUI()
                                                 contentSizeFitter = "vertical"
                                             },
                                             children = {
-                                                {
-                                                    tag = "GridLayout",
-                                                    attributes = {
-                                                        id = "TestGrid",
-                                                        cellSize = "50 50",
-                                                        spacing = "6 6",
-                                                        padding = "10 10 10 10",
-                                                        constraint = "FixedColumnCount",
-                                                        constraintCount = "10",
-                                                        color = "#222222",
-                                                        alignment = "UpperCenter"
-                                                    }
-                                                }
+                                                testGrid,
                                             }
                                         }
                                     }
@@ -265,6 +268,8 @@ local function buildGridUI()
             }
         }
     }
+    
+    return ui, testGrid
 end
 
 --- @class GridOutput: genericOutput
@@ -273,13 +278,13 @@ setmetatable(GridOutput, { __index = M.genericOutput })
 
 function onTestSquareClick(_player, _value, id)
     local runner = _G.__luaunit_runner_instance
-
+    
     local node = runner.result.allTests[tonumber(id)]
     if not node then
         printToAll("No data for test #" .. id, { 1, 0, 0 })
         return
     end
-
+    
     printToAll(M.prettystr(node), Color.fromHex(TTSOutput.colors[node.status] or TTSOutput.colors.UNKNOWN))
 end
 
@@ -292,19 +297,17 @@ end
 
 function GridOutput:startSuite()
     local clickFunc = "onTestSquareClick"
-
+    
     if M.LuaUnit.outputType.scriptOwner == Global then
         clickFunc = "Global" .. "/" .. clickFunc
     end
-
-    local uiTable = buildGridUI()
-
-    -- create one Button per test square, using GUID/functionName syntax
-    local panels = {}
+    
+    local uiTable, testGrid = buildGridUI()
+    
     local totalTests = self:totalTests()
     for i = 1, totalTests do
         local id = tostring(i)
-        table.insert(panels, {
+        table.insert(testGrid.children, {
             tag = "Button",
             attributes = {
                 id = id,
@@ -312,25 +315,15 @@ function GridOutput:startSuite()
                 width = "50",
                 height = "50",
                 color = self.colors.INFO,
-                text = ""
             }
         })
     end
-
-    -- attach the buttons into the GridLayout
-    local testGrid = findElementById(uiTable, "TestGrid")
-    if not testGrid then
-        printToAll(self.__class__ .. ": TestGrid not found", Color.fromHex(self.colors.ERROR))
-        return
-    end
-    testGrid.children = panels
-
-    -- render the assembled UI
+    
     self.gridOwner.UI.setXmlTable(uiTable)
 end
 
 function GridOutput:endTest(node)
-    local id  = tostring(node.number)
+    local id = tostring(node.number)
     local hex = statusColor(self.colors, node.status)
     self.gridOwner.UI.setAttribute(id, "color", hex)
     if self:totalTests() > 100 then
@@ -370,7 +363,9 @@ end
 
 function YieldOutput:endTest(_)
     self.n = self.n + 1
-    if self.n % self.freq == 0 then coroutine.yield(0) end
+    if self.n % self.freq == 0 then
+        coroutine.yield(0)
+    end
 end
 
 ---------------------------------------------------------------
@@ -378,26 +373,26 @@ end
 ---------------------------------------------------------------
 function buildTTSOutput(runner, cfg)
     local root = TTSMultiOutput.new(runner)
-
+    
     -- ChatOutput (enabled unless explicitly disabled)
     if cfg.chat ~= false then
         root:add(ChatOutput.new(runner, cfg.colors, cfg.chat))
     end
-
+    
     -- LogOutput (enabled unless explicitly disabled)
     if cfg.log ~= false then
         root:add(LogOutput.new(runner, cfg.colors, cfg.log))
     end
-
+    
     -- GridOutput (enabled by default if gridOwner exists)
     if cfg.grid ~= false and cfg.gridOwner then
         root:add(GridOutput.new(runner, cfg))
     end
-
+    
     if cfg.yieldFrequency then
         root:add(YieldOutput.new(runner, cfg.yieldFrequency))
     end
-
+    
     return root
 end
 
