@@ -3,7 +3,7 @@
     Thin bootstrap that loads upstream LuaUnit, installs the TTS‑specific
     environment stubs, wires in the multi‑destination output module, and
     wraps LuaUnit's run methods to allow for a coroutine to update the output.
-────────────────────────────────────────────────────────────────────────────]]--
+────────────────────────────────────────────────────────────────────────────]] --
 local Emitter = {}
 
 function Emitter:init()
@@ -12,7 +12,7 @@ end
 
 function Emitter:emit(...)
     -- Convert each argument to string and expand tabs
-    local tabWidth = 8  -- Standard console tab width
+    local tabWidth = 8 -- Standard console tab width
     for _, arg in ipairs({ ... }) do
         local str = tostring(arg)
         -- Replace tabs with spaces, preserving alignment
@@ -22,7 +22,7 @@ function Emitter:emit(...)
         end)
         self.buffer = self.buffer .. str
     end
-    
+
     if self.buffer:find("\n") then
         for line in self.buffer:gmatch("([^\n]*)\n") do
             self:flush(line)
@@ -78,7 +78,7 @@ function os.getenv(key)
 end
 
 os.exit = function()
-    error("os.exit() is disabled in TTS")
+    error("For Tabletop Simulator features related to the command line arguments are disabled.")
 end
 
 io.open = function(_, _)
