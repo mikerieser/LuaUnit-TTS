@@ -157,7 +157,13 @@ end
 --[[────────────────────────────────────────────────────────────────────────────
     GridOutput: Grid-based UI output for TTS
 ────────────────────────────────────────────────────────────────────────────]] --
-local function buildGridUI()
+local function buildGridUI(originPos)
+    local clickFunc = "onCloseButtonClick"
+
+    if M.LuaUnit.outputType.scriptOwner == Global then
+        clickFunc = "Global" .. "/" .. clickFunc
+    end
+
     local testGrid = {
         tag = "GridLayout",
         attributes = {
@@ -196,11 +202,27 @@ local function buildGridUI()
                 id = "TestStatus",
                 width = "650",
                 height = "700",
-                position = "0 350 -50",
+                position = originPos or "0 350 -50",
                 color = "#666666",
                 active = "true"
             },
             children = {
+                {
+                    tag = "Button",
+                    attributes = {
+                        id                   = "CloseButton",
+                        text                 = "✕",
+                        width                = "60",
+                        height               = "60",
+                        position             = "280 305 0", -- Adjusted for upper-right corner
+                        alignment            = "UpperRight",
+                        color                = "#DDDDDD",
+                        fontStyle            = "Bold",
+                        textColor            = "#FF2222",
+                        resizeTextForBestFit = "true",
+                        onClick              = clickFunc
+                    }
+                },
                 {
                     tag = "VerticalLayout",
                     attributes = {
@@ -258,6 +280,12 @@ local function buildGridUI()
     return ui, testGrid
 end
 
+function onCloseButtonClick()
+    local gridOwner = _G.__luaunit_runner_instance.gridOwner
+    local ui = gridOwner and gridOwner.UI or Global.UI
+    ui.setAttribute("TestStatus", "active", "false")
+end
+
 --- @class GridOutput: genericOutput
 GridOutput = { __class__ = "GridOutput" }
 setmetatable(GridOutput, { __index = M.genericOutput })
@@ -276,6 +304,7 @@ end
 
 function GridOutput.new(runner, config)
     local t = M.genericOutput.new(runner)
+    runner.gridOwner = config.gridOwner
     t.gridOwner = config.gridOwner
     t.colors = config.colors or TTSOutput.colors
     return setmetatable(t, { __index = GridOutput })
@@ -288,9 +317,11 @@ function GridOutput:startSuite()
         clickFunc = "Global" .. "/" .. clickFunc
     end
 
-    local uiTable, testGrid = buildGridUI()
+    local isGlobal          = (self.gridOwner.guid == "-1")
+    local origin            = isGlobal and "0 0 0" or nil
+    local uiTable, testGrid = buildGridUI(origin)
 
-    local totalTests = self:totalTests()
+    local totalTests        = self:totalTests()
     for i = 1, totalTests do
         local id = tostring(i)
         table.insert(testGrid.children, {
