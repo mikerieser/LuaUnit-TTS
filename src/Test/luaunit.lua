@@ -3020,7 +3020,6 @@ function M.LuaUnit:protectedCall(classInstance, methodInstance, prettyFuncName)
             status = NodeStatus.ERROR,
             msg = e,
             trace = string.sub(debug.traceback("", 1), 2)
-            -- trace = ""
         }
         return err
     end
