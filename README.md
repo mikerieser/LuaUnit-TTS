@@ -281,7 +281,7 @@ lu.LuaUnit.verbosity = lu.VERBOSITY_LOW      -- Only summary
 lu.LuaUnit.verbosity = lu.VERBOSITY_DEFAULT  -- Summary + test names
 lu.LuaUnit.verbosity = lu.VERBOSITY_VERBOSE  -- Full: classes, tests, details
 ```
-
+> **Tip:** `/clear` will clear the chat window.
 ---
 ## Output Configuration
 
