@@ -1,11 +1,7 @@
 # LuaUnit for Tabletop Simulator (TTS)
 
-A port of LuaUnit to Tabletop Simulator, featuring XML UI integration and multi-channel test output (chat, log, GUI).
-
 A drop-in extension of [LuaUnit](https://github.com/bluebird75/luaunit) for Tabletop Simulator, supporting output to
 chat, system log, and a grid UI.
-This is a custom port of [LuaUnit](https://github.com/bluebird75/luaunit) adapted for use inside **Tabletop Simulator
-** (TTS), which uses the **MoonSharp** Lua interpreter.
 
 The goal is to provide a fast, visual, developer-friendly test framework for mods, while staying unobtrusive and
 compatible with upstream LuaUnit.
@@ -33,7 +29,7 @@ Test/                                # Top-level test directory
 ├── luaunit.lua                      # Core LuaUnit framework, 1-line require() for test files
 ├── luaunit_tts_env.lua              # TTS/MoonSharp sandbox stubs for os/io/print (needed by TTS runner)
 ├── luaunit_tts_output.lua           # TTS output handlers (needed by TTS runner)
-├── luaunit_tts.lua                  # TTS runner, 1-line require(), includes everthing above
+├── luaunit_tts.lua                  # TTS runner, 1-line require(), includes everything above
 └── TestMain.lua                     # Example test runner
 ```
 
@@ -54,6 +50,20 @@ e.g. rolandostar's **Tabletop Simulator Lua** VSCode plugin.
 1. Load the saved game.
 1. Drop the object to run tests and see results in **chat**, **log**, and gui **grid**.
 1. Click on a grid square result to see the corresponding test name and result.
+
+---
+### Which 1-line to `require()`
+
+You'll only ever need one `require`. The original `luaunit.lua` had to be modified to run in Tabletop Simulator. It won't
+run tests as-is, but it is all you need for defining tests.
+
+* **`require("Test.luaunit")`** can be used in a Test Class or Module to provide the assertions where you want to define
+  Tests, but it won't be able to run them unaided.
+* **`require("Test.luaunit_tts")`** provides everything from `luaunit.lua`, but also provides the environment for the
+  test runner to work in the TTS sandbox. For simplicity and the cost of some unnecessary Lua code while testing, you
+  can just use this everywhere.
+
+**Note:** It's not recommended to ship your Mod with all the unnecessary overhead of your Test Code and LuaUnit.
 
 ---
 
@@ -118,20 +128,6 @@ function onLoad()
 end
 ```
 
----
-
-### Which 1-line to `require()`
-
-You'll only ever need 1 `require`. The original `luaunit.lua` had to be modified to run in Tabletop Simulator. It won't
-run tests as-is, but it is all you need for defining tests.
-
-* **`require("Test.luaunit")`** can be used in a Test Class or Module to provide the assertions where you want to define
-  Tests, but it won't be able to run them unaided.
-* **`require("Test.luaunit_tts")`** provides everything from `luaunit.lua`, but also provides the environment for the
-  test runner to work in the TTS sandbox. For simplicity and the cost of some unnecessary Lua code while testing, you
-  can just use this everywhere.
-
-**Note:** It's not recommended to ship your Mod with all the unnecessary baggage of your Test Code and LuaUnit.
 
 ---
 
@@ -170,7 +166,7 @@ return T
 
 Now before we invoke the runner, we set this up:
 
-```Lua
+```lua
 local lu = require("Test.luaunit_tts")  -- Note: we need the runner, so we require the `_tts` file.
 
 _G.TestAdd = require("Add")             -- assign the table to a global scoped key
@@ -211,11 +207,11 @@ e.g. `lu.assertEquals(4, Math.add(2,2))`
 
 LuaUnit supports expressive, self-documenting assertions:
 
-- `lu.assertEquals(expected, actual)`
-- `lu.assertAlmostEquals(expected, actual, delta)`
-- `lu.assertStrContains(haystack, needle)`
-- `lu.assertError(function, ...)`
-- `lu.assertTrue(actual)` / `lu.assertFalse(actual)`
+* `lu.assertEquals(expected, actual)`
+* `lu.assertAlmostEquals(expected, actual, delta)`
+* `lu.assertStrContains(haystack, needle)`
+* `lu.assertError(function, ...)`
+* `lu.assertTrue(actual)` / `lu.assertFalse(actual)`
 
 > You can also use `lu.assert(value)` as a truthiness check — similar to Lua’s native `assert()`, but integrated into
 > the test framework.
@@ -262,7 +258,7 @@ Each LuaUnit output format can be further configured with a **verbosity** settin
 `lu.VERBOSITY_QUIET, lu.VERBOSITY_LOW, lu.VERBOSITY_DEFAULT, lu.VERBOSITY_VERBOSE.`
 
 Because having a lot of text scroll past in a window isn't particularly helpful, a GUI GridLayout is also available with
-clickable cells to give information on the results of the test run.
+clickable cells that show information about each test result.
 This is referred to as **Grid** output.
 
 All three possible output channels are enabled by default and have the following configurations:
@@ -308,7 +304,7 @@ number of tests the test runner will process between each
 `coroutine.yield(0)`.
 
 **Default Yield Setting**
-```Lua
+```lua
 yieldFrequency = 10
 ```
 
@@ -370,7 +366,7 @@ lu.LuaUnit.outputType.colors.ERROR = "#FFA500"
 The grid output gives visual test progress, and helps with investigating test failures.
 
 By default, the script runner (identified by `self`) is also set as the `gridOwner`:
-```Lua
+```lua
 lu.LuaUnit.outputType.gridOwner = self
 ```
 
@@ -379,7 +375,7 @@ If the script runner (and therefore `gridOwner`) is `Global`, the grid will show
 >It's possible to trigger the running of scripts in `Global`, but also have the grid output to be anchored by an object.
 
 **Example: `TestMain.lua`** in anchor object
-```Lua
+```lua
 function runTests()
     Global.call("runTests", { self.getGUID() })
 end
@@ -390,7 +386,7 @@ end
 ```
 
 **Example: `Global.lua`**
-```Lua
+```lua
 function runTests(arg)
     local guid = type(arg) == "table" and arg[1] or arg
     local host = getObjectFromGUID(guid)
@@ -414,9 +410,9 @@ The grid shows test status and allows clicking for details.
 
 ### `error()` handling
 
-Moonsharp's `error()` handling internally converts error objects to `strings`. This means
+MoonSharp's `error()` handling internally converts error objects to `strings`. This means
 `lu.assertError()` will work, if you try to use `lu.assertErrorMsgContains()`
-Moonsharp will have already converted the `table` to a `string` and you'll get the meaningless `"table: 000204A1"` as
+MoonSharp will have already converted the `table` to a `string` and you'll get the meaningless `"table: 000204A1"` as
 the error message.
 
 ### Command Line Features
