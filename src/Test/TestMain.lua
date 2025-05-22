@@ -1,9 +1,7 @@
 local lu = require("Test.luaunit_tts")
 
 local testClasses = {
-    -- TestMath   = require("Test.TTS_lib.TestMath"),
-    -- TestString = require("Test.TTS_lib.TestString"),
-    -- TestVector = require("Test.TTS_lib.TestVector"),
+    TestDemo = require("Test.TestDemo")
 }
 
 for name, class in pairs(testClasses) do
@@ -21,5 +19,5 @@ end
 
 function onLoad()
     if self.is_face_down then self.flip() end
-    printToAll("Drop this checker to run tests.", { 1, 1, 1 })
+    printToAll("Drop this checker to run tests.", Color.Orange)
 end
