@@ -14,10 +14,20 @@ function runTests()
 end
 
 function onDrop()
-    Wait.condition(runTests, function() return self.resting end)
+    Wait.condition(runTests, function()
+        return self.resting
+    end)
 end
 
 function onLoad()
-    if self.is_face_down then self.flip() end
+    if self.is_face_down then
+        self.flip()
+    end
     printToAll("Drop this checker to run tests.", Color.Orange)
+end
+
+function onChat(msg, _player)
+    if msg:lower() == "!runtests" then
+        runTests()
+    end
 end

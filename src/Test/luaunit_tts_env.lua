@@ -1,8 +1,7 @@
 --[[────────────────────────────────────────────────────────────────────────────
     LuaUnit Bootstrap for TTS
     Thin bootstrap that loads upstream LuaUnit, installs the TTS‑specific
-    environment stubs, wires in the multi‑destination output module, and
-    wraps LuaUnit's run methods to allow for a coroutine to update the output.
+    environment stubs, and handles tab expansion for output.
 ────────────────────────────────────────────────────────────────────────────]] --
 local Emitter = {}
 

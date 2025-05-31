@@ -1,22 +1,21 @@
 # LuaUnit for Tabletop Simulator (TTS)
 
-A drop-in extension of [LuaUnit](https://github.com/bluebird75/luaunit) for Tabletop Simulator, supporting output to
-chat, system log, and a grid UI.
+A drop-in port and extension of [LuaUnit](https://github.com/bluebird75/luaunit) for Tabletop Simulator (TTS), supporting output to the chat window, system log, and an interactive test grid UI.
 
-The goal is to provide a fast, visual, developer-friendly test framework for mods, while staying unobtrusive and
-compatible with upstream LuaUnit.
+**Goal:** Provide a fast, visual, developer-friendly unit test framework for TTS mods, fully compatible with upstream LuaUnit and idiomatic Lua best practices.
 
 ---
 
-## Features
+## LuaUnit Features
 
-- ✅ **1-line require()** for easy drop-in: `require("Test.luaunit_tts")`
-- 🎨 GUI **visual test grid** using XML Grid Layout + scripting object
-- 📦 Works with [LuaBundler](https://github.com/Benjamin-Dobell/luabundler)
-- 🔁 Supports most of the standard LuaUnit assertions: `assertEquals()`, `assertTrue()`, etc.
-- ⚠️ Supports skipping tests: `lu.skip("reason")`
-- 🔍 Detects any global table whose name starts with `Test`
-- 🔊 Verbosity modes for output: `QUIET`, `LOW`, `DEFAULT`, `VERBOSE`
+- ✅ **1-line require:** Easy drop-in: `require("Test.luaunit_tts")`
+- 🎨 **Visual grid UI:** Interactive GUI GridLayout test grid
+- 💻 **Chat & log output:** Results can be directed to both TTS chat and log
+- 📦 **Bundler friendly:** Works with [Rolandostar's TTS Lua](https://marketplace.visualstudio.com/items?itemName=rolandostar.tabletopsimulator-lua) & [LuaBundler](https://github.com/Benjamin-Dobell/luabundler)
+- 🔁 **Most LuaUnit assertions:** `assertEquals()`, `assertTrue()`, etc.
+- ⚠️ **Skip support:** `lu.skip("reason")`
+- 🔍 **Auto-discovers test classes:** Any global table named `Test*`
+- 🔊 **Verbosity modes:** QUIET, LOW, DEFAULT, VERBOSE
 
 ---
 
@@ -25,88 +24,76 @@ compatible with upstream LuaUnit.
 All the Lua files and this document assume the following folder structure under `Test/`.
 
 ```
-Test/                                # Top-level test directory
-├── luaunit.lua                      # Core LuaUnit framework, 1-line require() for test files
-├── luaunit_tts_env.lua              # TTS/MoonSharp sandbox stubs for os/io/print (needed by TTS runner)
-├── luaunit_tts_output.lua           # TTS output handlers (needed by TTS runner)
-├── luaunit_tts.lua                  # TTS runner, 1-line require(), includes everything above
-└── TestMain.lua                     # Example test runner
+Test/                      # Top-level test directory
+├── luaunit.lua            # Core LuaUnit framework (minimally patched for TTS)
+├── luaunit_tts_env.lua    # TTS/MoonSharp sandbox stubs for os/io/print (needed by TTS runner)
+├── luaunit_tts_output.lua # TTS output handlers (needed by TTS runner)
+├── luaunit_tts.lua        # TTS runner, 1-line require(), includes everything above
+└── TestMain.lua           # Example test runner script
 ```
 
 ---
 
-## Quick Start & Demo
+## Quick Start
 
-Assuming support for static `require()` statements.
-e.g. rolandostar's **Tabletop Simulator Lua** VSCode plugin.
+**Assumptions:**  
+You’re using a VSCode plugin or similar that supports static `require()`.
 
-1. Spawn an object to host your test runner.
-   (e.g. a Checker from *Objects → Components → Checkers → White*).
-1. Add this Lua script to the object:
-   ```lua
-   require("Test.TestMain")
-   ```
-1. Save this game.
-1. Load the saved game.
-1. Drop the object to run tests and see results in **chat**, **log**, and gui **grid**.
-1. Click on a grid square result to see the corresponding test name and result.
+1. Spawn a test object (e.g. Checker from *Objects → Components → Checkers*).
+2. Attach this Lua script:
+    ```lua
+    require("Test.TestMain")
+    ```
+3. Save and reload your game.
+4. Drop the object to run tests!  
+   - See results in chat, log, and grid.  
+   - Click a grid square to view details for that test.
 
 ---
-### Which 1-line to `require()`
 
-You'll only ever need one `require`. The original `luaunit.lua` had to be modified to run in Tabletop Simulator. It won't
-run tests as-is, but it is all you need for defining tests.
+### Which `require()` do I use?
 
-* **`require("Test.luaunit")`** can be used in a Test Class or Module to provide the assertions where you want to define
-  Tests, but it won't be able to run them unaided.
-* **`require("Test.luaunit_tts")`** provides everything from `luaunit.lua`, but also provides the environment for the
-  test runner to work in the TTS sandbox. For simplicity and the cost of some unnecessary Lua code while testing, you
-  can just use this everywhere.
+- Use `require("Test.luaunit_tts")` **everywhere** during testing.  
+  (It’s a superset: it includes the original `luaunit.lua` and adds TTS support.)
+- For **test definition only** (no runner), `require("Test.luaunit")` will work.
 
-**Note:** It's not recommended to ship your Mod with all the unnecessary overhead of your Test Code and LuaUnit.
+> **Tip:** ⚠️ Don’t ship your final mod with test code or LuaUnit.
 
 ---
 
 ## Writing Tests
 
-Here is an minimal complete example for defining and running a test.
+1. **`require("Test.luaunit_tts")`** the LuaUnit-TTS module.
+2. **Define a test class** *global* table name starts with `Test*` (case-insensitive)
+3. **Define test cases** function name starts with `test*` (case-insensitive).
+4. **Call the runner** it auto-discovers test classes (tables) and runs their test cases (functions).
 
-* Include **`Test.luaunit_tts`**, a 1-line require for the TTS runner code, which also includes LuaUnit.
-* Define a **Test Class** (table), in Global scope with a name that begins with 'Test'.
-* Define a **Test Case** (function).
-    * Every Test Case should have an Assertion **`assertEquals()`** in this case.
-* Invoke the **Test Runner**, the LuaUnit runner auto-discovers Test Classes (tables), and runs each Test Case (
-  function).
+**Minimal Example:**
 
-**Simplistic Example:**
+```lua
+local lu = require("Test.luaunit_tts")
 
-```Lua
-local lu = require("Test.luaunit_tts")  -- 1-line require for the TTS runner code
+TestMath = {}                   -- global table (test class)
 
-TestChecker = {}                        -- table in Global scope with a name that begins with 'Test'
+function TestMath:test_addition()
+    lu.assertEquals(4, 2 + 2)   -- LuaUnit assertion, the first value is what is expected,
+end                             --                    the second is the actual computed value
 
-function TestChecker:test_subtraction()
-    -- test function in the test table with a name that also begins with 'test'
-    lu.assertEquals(2, 3 - 1)           -- LuaUnit assertion, the first value is what is expected,
-end                                     --                    the second is the actual computed value
+lu.LuaUnit:run()                -- invoke the runner
+````
 
-lu.LuaUnit:run()                        -- the LuaUnit runner which auto-discovers test files and runs the test functions.
-```
+**More practical example:**
 
 The above really gives no control over when the LuaUnit `run()` is invoked.
 
-A more practical example would allow you to run the tests repeatedly under your control.
-An object to kick off the tests is far more convenient. Hence the `runTests()` method and `onDrop()` method to invoke
-it.
+A more practical example allows you to run the tests repeatedly under your control. An object to kick off the tests is far more convenient. Hence the `runTests()` method and `onDrop()` method to invoke it.
 
-**Improved Example:**
-
-```Lua
+```lua
 local lu = require("Test.luaunit_tts")
 
-TestChecker = {}
+TestMath = {}
 
-function TestChecker:test_subtraction()
+function TestMath:test_subtraction()
     lu.assertEquals(2, 3 - 1)
 end
 
@@ -115,76 +102,61 @@ function runTests()
 end
 
 function onDrop()
-    Wait.condition(runTests, function()
-        return self.resting
-    end)
+    Wait.condition(runTests, function() return self.resting end)
 end
 
 function onLoad()
-    if self.is_face_down then
-        self.flip()
-    end
+    if self.is_face_down then self.flip() end
     printToAll("Drop this checker to run tests.", { 1, 1, 1 })
 end
 ```
 
-
 ---
 
-### Names and Scope
+### Names, Scope, and Discovery
 
-LuaUnit discovers tests automatically using a naming convention:
+* **Test Class:** Any global table named `Test*` (ignores case).
+  e.g., `TestVector = {}`
+* **Test Case:** Any function in a test class table named `test*` (ignores case).
+* **Discovery:**
 
-* **Tables**: Named `Test*` in global scope (case-insensitive).
-* **Test Functions**: Methods starting with `test*` (also case-insensitive).
-
-LuaUnit automatically discovers all **global tables** whose names begin
-with `Test`. For discovery to work, your test suite must be assigned to
-a global variable (e.g., `TestMath = {}`), not a local one.
-
-- ✅ **Global test table:** `TestMath = {}` — discovered
-- ❌ **Local table:** `local TestMath = {}` — *not* discovered
-
-- ✅ `TestMath = require("Test.TTS_lib.TestMath")` — works
-- ❌ `local TestMath = require(...)` — ignored, again the issue is not with `require`, but with `local`, which prevents
-  the table from being added to `_G`
+    * ✅ `TestMath = require("Test.TTS_lib.TestMath")` (global) — discovered
+    * ❌ `local TestMath = {}` *not* discovered
+    * ✅ TestMath = require("Test.TTS_lib.TestMath") — works
+    * ❌ local TestMath = require(...) — ignored, again the issue is not with require, but with local, which prevents the table from being added to _G
 
 The following also works if it's used as follows. Assume the following is in a file named `Add.lua`.
 
 ```lua
 -- File: Add.lua
-local lu = require("Test.luaunit")  -- Note: this works as we only need the assertions from luaunit, not the runner
+local lu = require("Test.luaunit")  -- we only need the assertions from luaunit, not the runner
 
 local T = {}
 function T:test_addition()
-    -- the function needs to begin with 'test'
     lu.assertEquals(4, 2 + 2)
 end
 
 return T
 ```
-
-Now before we invoke the runner, we set this up:
+Now before we invoke the runner, we give the test module a global (`_G`) key:
 
 ```lua
-local lu = require("Test.luaunit_tts")  -- Note: we need the runner, so we require the `_tts` file.
+local lu = require("Test.luaunit_tts")  -- need the runner, so we require the `_tts` file.
 
 _G.TestAdd = require("Add")             -- assign the table to a global scoped key
 
 lu.LuaUnit.run()
 ```
 
-The variable assigned in `_G` **doesn’t need to match** the returned table name. What matters is the **key**:
-This is valid because `_G.TestAdd` begins with `Test` and is in global scope even though the file returns a `local`
-table named `T`.
+The variable assigned in `_G` doesn’t need to match the returned table name. What matters is the key. This is valid because `_G.TestAdd` begins with `Test` and is in global scope even though the file returns a local table named `T`.
 
-### Useful Pattern for `TestMain.lua`
+**Pattern for TestMain.lua:**
 
 This pattern is bundler-friendly and auto-discoverable:
 
 ```lua
 local testClasses = {
-    TestMath = require("Test.TTS_lib.TestMath"),
+    TestMath   = require("Test.TTS_lib.TestMath"),
     TestString = require("Test.TTS_lib.TestString"),
     TestVector = require("Test.TTS_lib.TestVector"),
 }
@@ -194,98 +166,75 @@ for name, class in pairs(testClasses) do
 end
 ```
 
+All assigned tables will be picked up as test classes.
+>Default LuaUnit behavior is to sort the test classes first by class name then by function name.
+
 ---
 
-### Common Assertions
+## Assertions
 
-LuaUnit had a *default* which was contrary to the original xUnit pattern for assertions.
-This port has the convention for assertions of listing the **expected value** first, that is the correct answer that you
-should expect, and
-the **actual value** second, that is the value computed or returned as a result of a call to your code under test.
-**`lu.assertEquals(expected, actual)`** — *as God and Kent Beck intended!*
-e.g. `lu.assertEquals(4, Math.add(2,2))`
+LuaUnit supports expressive, self-documenting assertions.
 
-LuaUnit supports expressive, self-documenting assertions:
+This port follows the original xUnit ordering convention: `expected` first, `actual` second.
+
+```lua
+lu.assertEquals(expected, actual)
+```
+
+1. **expected:** the value you want the code under test to produce
+2. **actual:**   the value the code under test actually produces
+ 
+**Example:**
+```lua
+lu.assertEquals(4, math.add(2,2))
+```
+
+> **Tip:** LuaUnit does a nice job comparing tables for equality.
+> It also has a nice formatter `lu.prettystr(obj)` for safely printing any type including tables.
+
+Other common assertions:
 
 * `lu.assertEquals(expected, actual)`
 * `lu.assertAlmostEquals(expected, actual, delta)`
 * `lu.assertStrContains(haystack, needle)`
 * `lu.assertError(function, ...)`
-* `lu.assertTrue(actual)` / `lu.assertFalse(actual)`
+* `lu.assertTrue(actual)`, `lu.assertFalse(actual)`
+ 
+> See [LuaUnit assertion docs](https://github.com/bluebird75/luaunit#assertions) for a full list.
 
-> You can also use `lu.assert(value)` as a truthiness check — similar to Lua’s native `assert()`, but integrated into
-> the test framework.
+LuaUnit's *default* is contrary to the original xUnit pattern for assertions.
 
-For more, see [LuaUnit’s assertion list](https://github.com/bluebird75/luaunit#assertions).
+This port has the convention for assertions of listing the expected value first, that is the correct answer that you should expect, and the actual value second, that is the value computed or returned as a result of a call to your code under test.
+
+`lu.assertEquals(expected, actual)` — *just as God and Kent Beck intended!*
 
 ---
 
-### Skipping Tests
+## Skipping Tests
 
-It's occasionally helpful to remove a test from the test run, but turning into a comment isn't always desirable as it
-will
-no longer be treated as code by an IDE. The LuaUnit supported way to skip a test is with the `lu.skip("message")`
-method.
+Use `lu.skip("reason")` to skip a test without commenting it out.
 
 ```lua
-function TestExample:test_skipFeature()
+function TestSomething:test_notReady()
     lu.skip("Feature not yet implemented")
-    -- ... the rest of the test case
 end
 ```
 
 ---
-## Customizing Output
 
-Each output channel can be turned on or off, and configured.
-
-### Output Channels
-
-LuaUnit defined output formats that could go to the console or to an XML file.
-TTS will not allow creating a file and writing to it. So, file-based output is unavailable.
-
-Two of the output formats provided by LuaUnit: **`TEXT`** and **`TAP`** are available in the TTS port.
-
-* **TEXT** is a compact text format which is the default for LuaUnit and at its lowest verbosity it just outputs single
-  character results: `.`, `F`, `E`, or `S` for passed, failed, error, or skipped.
-* **TAP** is the [Test Anything Protocol](https://testanything.org/), which seems easy to read and understand though a
-  tad verbose in TTS.
-
-Both of these text-based output formats (TEXT or TAP) are available and can be configured to be sent to either the TTS
-Chat window with color, or to the TTS Console Log, or both.
-
-Each LuaUnit output format can be further configured with a **verbosity** setting. Available settings are:
-`lu.VERBOSITY_QUIET, lu.VERBOSITY_LOW, lu.VERBOSITY_DEFAULT, lu.VERBOSITY_VERBOSE.`
-
-Because having a lot of text scroll past in a window isn't particularly helpful, a GUI GridLayout is also available with
-clickable cells that show information about each test result.
-This is referred to as **Grid** output.
-
-All three possible output channels are enabled by default and have the following configurations:
-
-* **Chat** { `TAP` format, verbose }
-* **Log**  { `TEXT` format, low verbosity }
-* **Grid** { enabled with default `gridOwner` as `self` }
-
-### Verbosity Modes
-
-Set verbosity to control the amount of output:
-
-```lua
-lu.LuaUnit.verbosity = lu.VERBOSITY_QUIET    -- Mostly
-lu.LuaUnit.verbosity = lu.VERBOSITY_LOW      -- Only summary
-lu.LuaUnit.verbosity = lu.VERBOSITY_DEFAULT  -- Summary + test names
-lu.LuaUnit.verbosity = lu.VERBOSITY_VERBOSE  -- Full: classes, tests, details
-```
-> **Tip:** `/clear` will clear the chat window.
----
 ## Output Configuration
 
-Each output channel can be set to `false` to disable them (as shown above), or to a `table` with configuration settings.
+LuaUnit-TTS supports **three output channels**: Chat, Log, Grid. All enabled by default.
 
-### Disabling an output channel
+### Channel defaults
 
-Disabling what you don't use should improve performance.
+```lua
+lu.LuaUnit.outputType.chat = { format = "TAP",   verbosity = lu.VERBOSITY_VERBOSE }
+lu.LuaUnit.outputType.log  = { format = "TEXT",  verbosity = lu.VERBOSITY_LOW }
+lu.LuaUnit.outputType.gridOwner = self  -- (usually the test object)
+```
+
+**Disabling channels:** (improves performance)
 
 ```lua
 lu.LuaUnit.outputType.chat = false
@@ -293,161 +242,329 @@ lu.LuaUnit.outputType.log = false
 lu.LuaUnit.outputType.grid = false
 ```
 
----
-### Yield Frequency
-
-When running tests in TTS, the framework will occupy the CPU and
-delay all output until all the processing is finished unless
-it's told to yield. 
-The `yieldFrequency` setting is the
-number of tests the test runner will process between each 
-`coroutine.yield(0)`.
-
-**Default Yield Setting**
-```lua
-yieldFrequency = 10
-```
-
-Larger values will increase performance at the cost of seeing visual progress.
-
----
-### OutputType Table Structure
-
-In LuaUnit the `outputType` is one of `nil`, `TEXT`, `TAP`, or `JUnit XML`.
-In TTS, the `outputType` is replaced with a configurable composite called `TTSOutput`.
-You'll never use `TTSOutput` directly, but you will be configuring it through its reference: `lu.LuaUnit.outputType`.
-LuaUnit calls `new()` on the `outputType` and assigns the instance to the test runner's `output`.
-
-`TTSOutput` is used to configure the three output channels: `chat`,
-`log`, and `grid`, the table of colors shared by both `grid` and `chat` output,
-and it configures the frequency of updates to the screen.
-
-**Default Configuration:**
-```lua
-lu.LuaUnit.outputType.chat = { format = "TAP", verbosity = lu.VERBOSITY_VERBOSE }
-lu.LuaUnit.outputType.log = { format = "TEXT", verbosity = lu.VERBOSITY_LOW }
-lu.LuaUnit.outputType.gridOwner = self
-```
-
-Any changes in configuration must be made **before** calling `:run()`.
+**Changing format/verbosity:**
 
 ```lua
--- To change just one property:
 lu.LuaUnit.outputType.chat.format = "TEXT"
+lu.LuaUnit.verbosity = lu.VERBOSITY_LOW
 ```
 
----
-### Customizing Colors
+**Customizing colors:**
 
-The following colors are used by `chat` and `grid` outputs.
-
-**Default Table of Colors**:
-```lua
-lu.LuaUnit.outputType.colors = {
-    SUCCESS = "#00FF00",    -- bright green (test passed)
-    FAIL    = "#FF0000",    -- bright red   (test failed)
-    ERROR   = "#FF6600",    -- dark orange  (test had a runtime error)
-    SKIP    = "#FFFF00",    -- yellow       (test skipped)
-    INFO    = "#FFFDD0",    -- cream        (generic info)
-    UNKNOWN = "#FF00FF",    -- magenta      (something unexpected)
-}
-```
-
-You can override the entire table or just one key.
-
-**Example: Overriding the ERROR color**
 ```lua
 lu.LuaUnit.outputType.colors.ERROR = "#FFA500"
 ```
 
----
-### GUI Grid Output
+**Default color table:**
 
-The grid output gives visual test progress, and helps with investigating test failures.
-
-By default, the script runner (identified by `self`) is also set as the `gridOwner`:
 ```lua
-lu.LuaUnit.outputType.gridOwner = self
+lu.LuaUnit.outputType.colors = {
+    SUCCESS = "#00FF00",  -- passed, bright green
+    FAIL    = "#FF0000",  -- failed, bright red
+    ERROR   = "#FF6600",  -- runtime error, orange
+    SKIP    = "#FFFF00",  -- skipped, yellow
+    INFO    = "#FFFDD0",  -- info, cream
+    UNKNOWN = "#FF00FF",  -- unknown, magenta
+}
 ```
 
-If the script runner (and therefore `gridOwner`) is `Global`, the grid will show up on-screen. Which can be awkward.
+---
 
->It's possible to trigger the running of scripts in `Global`, but also have the grid output to be anchored by an object.
+### GUI Test Grid
 
-**Example: `TestMain.lua`** in anchor object
+* Displays test progress visually and updates during the run.
+* Each cell = 1 test; click for details.
+* By default, grid is attached to the running object (`self`).
+* If run in `Global` without an object to anchor, the grid display is on-screen.
+
+**To use an object as the anchor from `Global.lua`**
+
+```lua
+function runTests(arg)
+    local guid = type(arg) == "table" and arg[1] or arg
+    local host = getObjectFromGUID(guid)
+    if not host then error("runTests: invalid GUID " .. tostring(guid)) end
+    
+    lu.LuaUnit.outputType.gridOwner = host
+    lu.LuaUnit:run()
+end
+```
+
+In test object:
+
 ```lua
 function runTests()
     Global.call("runTests", { self.getGUID() })
 end
-
 function onDrop()
     Wait.condition(runTests, function() return self.resting end)
 end
 ```
 
-**Example: `Global.lua`**
-```lua
-function runTests(arg)
-    local guid = type(arg) == "table" and arg[1] or arg
-    local host = getObjectFromGUID(guid)
-    if not host then
-        error("runTests: invalid GUID " .. tostring(guid))
-    end
+---
 
-    lu.LuaUnit.outputType.gridOwner = host
-    lu.LuaUnit:run()
+## Yield Frequency
+
+* Controls how often the runner yields control back to TTS, allowing UI and text output to update.
+* Configure with:
+
+  ```lua
+  lu.LuaUnit.outputType.yieldFrequency = 10   -- (default: 10)
+  ```
+* Higher values = faster run, but less frequent UI updates.
+
+---
+### Remove Duplication with Setup & Teardown
+
+It's useful to put common repetitive setup code in one place.
+LuaUnit provides **setup** & **teardown** fixture hooks. There are three types:
+1. Per-test hooks run before and after each test function
+1. Per-class hooks run before and after each test class
+1. Per-suite hooks run before and after the entire test suite
+
+If you define any of the following functions (exact case), they’ll be invoked automatically.
+
+1. **Per-test hooks** (typically the most common)
+   * `setUp(self)` / `tearDown(self)` inside a test class.
+   * `setUp` runs immediately before each `test*` method; `tearDown` runs immediately after.
+   * **Example:**
+     ```lua
+     TestVector = {}
+ 
+     function TestVector:setUp()
+         -- create a fresh vector for each test
+         self.v = Vector(1, 2, 3)
+     end
+ 
+     function TestVector:tearDown()
+         -- clear the vector or perform any cleanup
+         self.v = nil
+     end
+ 
+     function TestVector:test_length()
+         local len = self.v:magnitude()
+         lu.assertAlmostEquals(3.7417, len, 0.0001)
+     end
+     ```
+2. **Class-level hooks** (when you want something in existance during the run of all the tests in a class)
+   * `setupClass(self)` / `teardownClass(self)` inside a test class table.
+   * Executed once before/after any of that class’s `test*` methods.
+   * **Example:**
+     ```lua
+     TestMath = {}
+
+     function TestMath:setupClass()
+         -- e.g. compute some table needed by TestMath methods
+         self.lookup = { [1]=1, [2]=4, [3]=9 }
+     end
+
+     function TestMath:teardownClass()
+         -- e.g. nil out self.lookup 
+         self.lookup = nil
+     end
+
+     function TestMath:test_square_of_2()
+         lu.assertEquals(4, self.lookup[2])
+     end
+     ```
+3. **Suite-level hooks**
+   - `setupSuite()` / `teardownSuite()`
+   - Placed in any global script (e.g. in `TestMain.lua`).
+   - `setupSuite()` runs once before *all* tests; `teardownSuite()` runs once after *all* tests.
+   - **Example:**
+     ```lua
+     function setupSuite()
+         -- e.g. initialize shared test data or spawn a helper object
+     end
+ 
+     function teardownSuite()
+         -- e.g. clean up or destroy that helper object
+     end
+     ```
+
+---
+
+## Testing Hints, Tips and Best Practices
+
+As this port is new, there isn't a lot of prior history that can be offered, but here are tips gleaned from codebases in other languages.
+
+### Arrange, Act, Assert
+
+A common skeleton for test methods are three clear steps:
+
+1. **Arrange** – set up any data or objects you need.
+2. **Act**     – invoke the method or function under test.
+3. **Assert**  – verify the outcome with one or possibly more assertions.
+
+**Example:**
+```lua
+function TestVector:test_vector_length_calculation()
+    -- Arrange
+    local v = Vector.new(3, 4, 0)
+    
+    -- Act
+    local len = v:magnitude()
+    
+    -- Assert
+    lu.assertEquals(5, len)
 end
 ```
-The grid shows test status and allows clicking for details.
 
----
-## Differences from Native LuaUnit
+>Resist the temptation to bundle multiple scenarios into a single test.
+ 
+Don't intersperse asserts with arrange & act code.
+<br/>e.g. arrange, act, assert, followed by more arrange or act code, followed by more asserts all in one test method.
 
-* **No JUnit XML Output**: file output is unsupported in TTS.
-* **MoonSharp Sandbox**: No `io.open()`, `os.exit()` or real environment `os.getenv()` access.
-* **Coroutine Execution**: the test framework needs to yield to TTS coroutines to do UI updates.
-* **assert(expected, actual):** LuaUnit sets `lu.ORDER_ACTUAL_EXPECTED = true` which is opposite of the original xUnit convention of: expected, actual.
+Instead, split each scenario into separate `test` methods:
 
-### `error()` handling
+### Naming
+Test method names need to start with `test`, we can't get around that, but try to convey a specific behavior or outcome with the rest of the test name.
 
-MoonSharp's `error()` handling internally converts error objects to `strings`. This means
-`lu.assertError()` will work, if you try to use `lu.assertErrorMsgContains()`
-MoonSharp will have already converted the `table` to a `string` and you'll get the meaningless `"table: 000204A1"` as
-the error message.
+What's being asserted in the test and the name of the test should feel related. When the test fails, it's helpful that the name tells you what's wrong.
+1. avoid meaningless names `test_doit()`, `test1()`, or `testFoo()`
+1. using the word `should` or `should_not` is useful in this regard.
+   - e.g. `test_object_should_spawn_at_origin()`
+     ```lua
+     TestSpawner = {}
 
-### Command Line Features
+     function TestSpawner:test_object_should_spawn_at_origin()
+         local origin = Vector(0, 0, 0)
+         local spawner = Spawner.new()
+         local obj = spawner:spawn("ObjectUnderTest")
+   
+         lu.assertEquals(origin, obj.getPosition())
+     end
+     ```
+> Keep names concise but intention-revealing. If a test fails, its name should hint at what broke.
 
-LuaUnit goes to great pains to provide rich command-line features like selecting tests by patterns or certain instances
-etc. This isn't easily reproduced within TTS.
-So instead you'll control what goes into `_G` global scope and then gets auto-discovered.
+### Keep Tests Small and Focused
+
+Here are some good rules for tests:
+1. **A test should fail reliably for an expected reason.** (A test has only one reason to fail.)
+2. **A test should never fail for any other reason.** (Don't give a test multiple reasons to fail.)
+3. **There are no other tests that fail for the same reason.** (Don't duplicate tests that will all fail for the same reason.)
+
+One way to ensure this is keep it to one assertion per behavior, wherever practical.
+If you need multiple assertions, group them under a single logical behavior.
+
+Ensure each `test` method verifies exactly one “unit of behavior.” This makes it easier to locate and fix failures quickly.
+
+##### Approach 1: Using `setUp()` / `tearDown()` with one assert per test
 
 ```lua
-local testClasses = {
-    TestVector = require("Test.TTS_lib.TestVector"),
-    TestMath   = require("Test.TTS_lib.TestMath"),
-    TestString = require("Test.TTS_lib.TestString"),
-    TestTable  = require("Test.TTS_lib.TestTable")
-}
+TestSpawner = {}
 
-for name, class in pairs(testClasses) do
-    _G[name] = class
+-- Runs once before any test methods
+function TestSpawner:setupClass()
+    -- Common setup: spawn the object under test
+    self.origin  = Vector(0, 0, 0)
+    self.spawner = Spawner.new()
+    self.obj     = self.spawner:spawn("ObjectUnderTest")
 end
 
-lu.LuaUnit:run()
+-- Runs once after all these test methods
+function TestSpawner:teardownClass()
+    -- Clean up: destroy the spawned object and clear references
+    self.obj:destroy()
+    self.obj     = nil
+    self.spawner = nil
+end
+
+-- Each test only contains a single assertion about the spawned object:
+
+function TestSpawner:test_object_should_spawn_at_origin()
+    lu.assertEquals(self.origin, self.obj:getPosition())
+end
+
+function TestSpawner:test_object_should_be_rotated_clockwise_90_degrees()
+    local expectedRotation = Rotation(0, 90, 0)
+    lu.assertEquals(expectedRotation, self.obj:getRotation())
+end
+
+function TestSpawner:test_object_should_be_half_scale()
+    local expectedScale = Vector(0.5, 0.5, 0.5)
+    lu.assertEquals(expectedScale, self.obj:getScale())
+end
 ```
+
+Benefit: each test is tiny and low‐risk—if one behavior breaks, the tests tell you exactly which behvavior you broke.
+
+#### Approach 2: Single‐block assertions all inside one `test` method
+
+```lua
+TestSpawner = {}
+
+function TestSpawner:test_object_should_spawn_with_correct_properties()
+    local expectedPosition = Vector(0, 0, 0)
+    local expectedRotation = Rotation(0, 90, 0)
+    local expectedScale    = Vector(0.5, 0.5, 0.5)
+
+    local spawner = Spawner.new()
+    local obj     = spawner:spawn("ObjectUnderTest")
+
+    lu.assertEquals(expectedPosition, obj:getPosition())
+    lu.assertEquals(expectedRotation, obj:getRotation())
+    lu.assertEquals(expectedScale,    obj:getScale())
+
+    obj:destroy()
+end
+```
+All assertions in one place:
+* You only spawn once, then immediately check every relevant property.
+
+* If any of these assertions fails, the entire test is marked failing.
+
+Benefit: shorter setup/teardown boilerplate; fewer named test functions.
+
+However, a single failure in the block may require inspecting multiple assertions to pinpoint which property broke.
+
+#### Avoid repeating asserts
+If you opt for Approach 2, don't fall into the trap of asserting the same things over again in every test. Once one test covers a property or behavior, you don’t need to repeat it elsewhere—duplication just means a single bug will break half your test suite. Trust that “one place,” you don't need to reassert or retest it everywhere else, move on to testing something new.
+
+### Always preserve test isolation
+
+* Tests should run alone.
+* Tests should run all together.
+* Tests should run in any order.
+* Each test should create its own state and clean up afterward.
+    * Don't depend on one test leaving a state you depend on in another test.
+
+* Don’t make tests depend on one another implicitly or explicitly.
+  * Never call a test from inside another test.
+  * Instead, factor out common code and call it, or incorporate it into a `setUp()` method.
+
+* Use `setupClass(self)` when you need an expensive, read‐only setup that’s shared by all tests in a class.
+* Use `setupSuite()` only for constants or static reference data that doesn't change during the entire run.
+  * Don't use it for global state modification.
+
 ---
 
-Happy testing 🎲
+## Differences With Upstream LuaUnit
+
+* **No JUnit XML Output:** TTS does not support file I/O.
+* **No file output:** All output goes to chat, log, or grid.
+* **No command line:** Test selection is determined by what is in global scope, not by command line pattern matching.
+* **MoonSharp sandbox:** No `io.open`, `os.exit`, or real `os.getenv` support. Additionally, there is no per character output via `io.stdout.write()`.
+* **Coroutine runner:** Test runner yields to TTS to allow GUI and text window updates.
+* **assertEquals(expected, actual):** This assertion order matches xUnit conventions.
 
 ---
+
 ## Credits
 
-- LuaUnit by [Philippe Fremy](https://github.com/bluebird75/luaunit)
-- TTS port and multi-output by [Mike Rieser](https://github.com/mikerieser/LuaUnit-TTS)
+* LuaUnit by [Philippe Fremy](https://github.com/bluebird75/luaunit)
+* TTS port and multi-output by [Mike Rieser](https://github.com/mikerieser/LuaUnit-TTS)
+
+---
 
 ## License
 
-* Original **LuaUnit** by [Philippe Fremy](https://github.com/bluebird75/luaunit)
-* **LuaUnit-TTS** port by [Mike Rieser](https://github.com/mikerieser/LuaUnit-TTS)
+* **LuaUnit** (original): BSD 3-Clause License
+* **LuaUnit-TTS** port: BSD 3-Clause License
 
-Distributed under the **BSD 3-Clause License**.
+---
+
+## Happy testing 🎲
+
+---
+#3488443936
