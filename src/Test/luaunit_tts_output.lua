@@ -19,19 +19,19 @@ TTSOutput = {
     chat = { format = "TAP", verbosity = M.VERBOSITY_VERBOSE },
     log = { format = "TEXT", verbosity = M.VERBOSITY_LOW },
     grid = true,
-    gridOwner = nil,     -- set to the object that owns the UI (usually self)
+    gridOwner = nil, -- set to the object that owns the UI (usually self)
     yieldFrequency = 10, -- number of tests between each coroutine.yield
-
+    
     -- Colors used by all outputs
     colors = {
         [M.NodeStatus.SUCCESS] = "#00FF00", -- bright green (test passed)
-        [M.NodeStatus.FAIL] = "#FF0000",    -- bright red (test failed)
-        [M.NodeStatus.ERROR] = "#FF6600",   -- dark orange (test had runtime error)
-        [M.NodeStatus.SKIP] = "#FFFF00",    -- yellow (test skipped)
-        INFO = "#FFFDD0",                   -- cream (generic info)
-        UNKNOWN = "#FF00FF",                -- magenta
+        [M.NodeStatus.FAIL] = "#FF0000", -- bright red (test failed)
+        [M.NodeStatus.ERROR] = "#FF6600", -- dark orange (test had runtime error)
+        [M.NodeStatus.SKIP] = "#FFFF00", -- yellow (test skipped)
+        INFO = "#FFFDD0", -- cream (generic info)
+        UNKNOWN = "#FF00FF", -- magenta
     },
-
+    
     -- Factory method for LuaUnit's outputType.new() call
     new = function(runner)
         return buildTTSOutput(runner, TTSOutput)
@@ -93,14 +93,14 @@ local FormatterDecorator = {}
 function FormatterDecorator._init(decorator, runner, colors, config)
     local formatter = (config.format == "TAP") and M.TapOutput or M.TextOutput
     local self = formatter.new(runner)
-
+    
     self.colors = colors or TTSOutput.colors
     self.verbosity = config.verbosity or M.VERBOSITY_DEFAULT
     for k, v in pairs(_G.Emitter) do
         self[k] = v
     end
     self:init()
-
+    
     return setmetatable(self, {
         __index = function(_, k)
             return decorator[k] or formatter[k]
@@ -157,13 +157,14 @@ end
 --[[────────────────────────────────────────────────────────────────────────────
     GridOutput: Grid-based UI output for TTS
 ────────────────────────────────────────────────────────────────────────────]] --
+local function resolveClickFunc(name)
+    local prefix = (M.LuaUnit.scriptOwner == Global) and "Global/" or ""
+    return prefix .. name
+end
+
 local function buildGridUI(originPos)
-    local clickFunc = "onCloseButtonClick"
-
-    if M.LuaUnit.scriptOwner == Global then
-        clickFunc = "Global/" .. clickFunc
-    end
-
+    local clickFunc = resolveClickFunc("onCloseButtonClick")
+    
     local testGrid = {
         tag = "GridLayout",
         attributes = {
@@ -210,17 +211,17 @@ local function buildGridUI(originPos)
                 {
                     tag = "Button",
                     attributes = {
-                        id                   = "CloseButton",
-                        text                 = "✕",
-                        width                = "60",
-                        height               = "60",
-                        position             = "280 305 0", -- Adjusted for upper-right corner
-                        alignment            = "UpperRight",
-                        color                = "#DDDDDD",
-                        fontStyle            = "Bold",
-                        textColor            = "#FF2222",
+                        id = "CloseButton",
+                        text = "✕",
+                        width = "60",
+                        height = "60",
+                        position = "280 305 0", -- Adjusted for upper-right corner
+                        alignment = "UpperRight",
+                        color = "#DDDDDD",
+                        fontStyle = "Bold",
+                        textColor = "#FF2222",
                         resizeTextForBestFit = "true",
-                        onClick              = clickFunc
+                        onClick = clickFunc
                     }
                 },
                 {
@@ -276,7 +277,7 @@ local function buildGridUI(originPos)
             }
         }
     }
-
+    
     return ui, testGrid
 end
 
@@ -298,7 +299,7 @@ function onTestSquareClick(_, _, id)
         printToAll("No data for test #" .. id, { 1, 0, 0 })
         return
     end
-
+    
     printToAll(M.prettystr(node), Color.fromHex(TTSOutput.colors[node.status] or TTSOutput.colors.UNKNOWN))
 end
 
@@ -311,17 +312,13 @@ function GridOutput.new(runner, config)
 end
 
 function GridOutput:startSuite()
-    local clickFunc = "onTestSquareClick"
-
-    if M.LuaUnit.outputType.scriptOwner == Global then
-        clickFunc = "Global" .. "/" .. clickFunc
-    end
-
-    local isGlobal          = (self.gridOwner.guid == "-1")
-    local origin            = isGlobal and "0 0 0" or nil
+    local clickFunc = resolveClickFunc("onTestSquareClick")
+    
+    local isGlobal = (self.gridOwner.guid == "-1")
+    local origin = isGlobal and "0 0 0" or nil
     local uiTable, testGrid = buildGridUI(origin)
-
-    local totalTests        = self:totalTests()
+    
+    local totalTests = self:totalTests()
     for i = 1, totalTests do
         local id = tostring(i)
         table.insert(testGrid.children, {
@@ -335,7 +332,7 @@ function GridOutput:startSuite()
             }
         })
     end
-
+    
     self.gridOwner.UI.setXmlTable(uiTable)
 end
 
@@ -389,26 +386,26 @@ end
 ---------------------------------------------------------------
 function buildTTSOutput(runner, config)
     local root = TTSMultiOutput.new(runner)
-
+    
     -- ChatOutput (enabled unless explicitly disabled)
     if config.chat ~= false then
         root:add(ChatOutput.new(runner, config.colors, config.chat))
     end
-
+    
     -- LogOutput (enabled unless explicitly disabled)
     if config.log ~= false then
         root:add(LogOutput.new(runner, config.colors, config.log))
     end
-
+    
     -- GridOutput (enabled by default if gridOwner exists)
     if config.grid ~= false and config.gridOwner then
         root:add(GridOutput.new(runner, config))
     end
-
+    
     if config.yieldFrequency then
         root:add(YieldOutput.new(config.yieldFrequency))
     end
-
+    
     return root
 end
 

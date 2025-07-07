@@ -55,7 +55,6 @@ You’re using a VSCode plugin or similar that supports static `require()`.
 
 - Use `require("Test.luaunit_tts")` **everywhere** during testing.  
   (It’s a superset: it includes the original `luaunit.lua` and adds TTS support.)
-- For **test definition only** (no runner), `require("Test.luaunit")` will work.
 
 > **Tip:** ⚠️ Don’t ship your final mod with test code or LuaUnit.
 
@@ -80,7 +79,7 @@ function TestMath:test_addition()
 end                             --                    the second is the actual computed value
 
 lu.LuaUnit:run()                -- invoke the runner
-````
+```
 
 **More practical example:**
 
@@ -129,7 +128,7 @@ The following also works if it's used as follows. Assume the following is in a f
 
 ```lua
 -- File: Add.lua
-local lu = require("Test.luaunit")  -- we only need the assertions from luaunit, not the runner
+local lu = require("Test.luaunit_tts")
 
 local T = {}
 function T:test_addition()
@@ -319,8 +318,8 @@ end
 It's useful to put common repetitive setup code in one place.
 LuaUnit provides **setup** & **teardown** fixture hooks. There are three types:
 1. Per-test hooks run before and after each test function
-1. Per-class hooks run before and after each test class
-1. Per-suite hooks run before and after the entire test suite
+2. Per-class hooks run before and after each test class
+3. Per-suite hooks run before and after the entire test suite
 
 If you define any of the following functions (exact case), they’ll be invoked automatically.
 
@@ -384,6 +383,33 @@ If you define any of the following functions (exact case), they’ll be invoked 
 
 ---
 
+## Asynchronous Tests
+
+When your code under test relies on TTS timing or events, you can suspend
+and resume tests with `lu.await()`.
+Under the hood this just calls `yield()` to allow control to pass to
+TTS’s coroutine runner so the UI, chat, and grid updates continue
+while you wait.
+
+- `lu.await(0)` – yields for 1-frame before continuing.
+- `lu.await(condFn)` – yields until `condFn()` returns `true` (evaluated each frame).
+
+### Example: 1-frame delay
+
+```lua
+function TestDoor:testAutoClose()
+    -- wait 1 frames 
+    await(0)
+    lu.assertTrue(door.isClosed)
+    
+    -- now wait until the “locked” flag is set
+    await(function() return door.isLocked end)
+    lu.assertTrue(door.isLocked)
+end
+```
+
+---
+
 ## Testing Hints, Tips and Best Practices
 
 As this port is new, there isn't a lot of prior history that can be offered, but here are tips gleaned from codebases in other languages.
@@ -400,7 +426,7 @@ A common skeleton for test methods are three clear steps:
 ```lua
 function TestVector:test_vector_length_calculation()
     -- Arrange
-    local v = Vector.new(3, 4, 0)
+    local v = Vector(3, 4, 0)
     
     -- Act
     local len = v:magnitude()
@@ -422,7 +448,7 @@ Test method names need to start with `test`, we can't get around that, but try t
 
 What's being asserted in the test and the name of the test should feel related. When the test fails, it's helpful that the name tells you what's wrong.
 1. avoid meaningless names `test_doit()`, `test1()`, or `testFoo()`
-1. using the word `should` or `should_not` is useful in this regard.
+2. using the word `should` or `should_not` can be useful in this regard.
    - e.g. `test_object_should_spawn_at_origin()`
      ```lua
      TestSpawner = {}
@@ -431,11 +457,13 @@ What's being asserted in the test and the name of the test should feel related. 
          local origin = Vector(0, 0, 0)
          local spawner = Spawner.new()
          local obj = spawner:spawn("ObjectUnderTest")
+     
+         lu.await(function() return self.obj.resting end)
    
          lu.assertEquals(origin, obj.getPosition())
      end
      ```
-> Keep names concise but intention-revealing. If a test fails, its name should hint at what broke.
+> Keep names concise but intention-revealing. If a test fails, its name should tell you what broke.
 
 ### Keep Tests Small and Focused
 

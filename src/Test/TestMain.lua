@@ -1,7 +1,8 @@
 local lu = require("Test.luaunit_tts")
 
 local testClasses = {
-    TestDemo = require("Test.TestDemo")
+    TestDemo = require("Test.TestDemo"),
+    TestSpawner = require("Test.TestSpawn"),
 }
 
 for name, class in pairs(testClasses) do
