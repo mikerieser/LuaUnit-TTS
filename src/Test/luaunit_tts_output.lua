@@ -160,8 +160,8 @@ end
 local function buildGridUI(originPos)
     local clickFunc = "onCloseButtonClick"
 
-    if M.LuaUnit.outputType.scriptOwner == Global then
-        clickFunc = "Global" .. "/" .. clickFunc
+    if M.LuaUnit.scriptOwner == Global then
+        clickFunc = "Global/" .. clickFunc
     end
 
     local testGrid = {
@@ -281,7 +281,7 @@ local function buildGridUI(originPos)
 end
 
 function onCloseButtonClick()
-    local gridOwner = _G.__luaunit_runner_instance.gridOwner
+    local gridOwner = TTSOutput.gridOwner
     local ui = gridOwner and gridOwner.UI or Global.UI
     ui.setAttribute("TestStatus", "active", "false")
 end
@@ -291,8 +291,8 @@ GridOutput = { __class__ = "GridOutput" }
 setmetatable(GridOutput, { __index = M.genericOutput })
 
 function onTestSquareClick(_, _, id)
-    local runner = _G.__luaunit_runner_instance
-
+    local runner = TTSOutput.currentRunner
+    
     local node = runner.result.allTests[tonumber(id)]
     if not node then
         printToAll("No data for test #" .. id, { 1, 0, 0 })

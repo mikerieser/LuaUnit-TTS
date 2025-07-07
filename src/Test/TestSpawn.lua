@@ -1,78 +1,5 @@
 lu = require("Test.luaunit_tts")
 
-function lu.LuaUnit:runSync()
-    lu.LuaUnit:run()
-end
-
-function lu.LuaUnit:asyncRun()
-    local co = coroutine.create(function() self:runSync() end)
-
-    local function resumeRunner()
-        if coroutine.status(co) == "dead" then
-            return  -- we’re done
-        end
-
-        local ok, yielded = coroutine.resume(co)
-        if not ok then
-            error("LuaUnit asyncRun error: " .. tostring(yielded))
-        end
-
-        -- if the suite/test finished on that resume, stop
-        if coroutine.status(co) == "dead" then
-            return
-        end
-
-        if type(yielded) == "function" then
-            -- your test asked us to wait for `yielded()` before continuing
-            Wait.condition(resumeRunner, yielded)
-        else
-            -- no yield → just keep going on the next frame
-            Wait.frames(resumeRunner, 1)
-        end
-    end
-
-    -- kick it off immediately
-    resumeRunner()
-end
-
--- function lu.LuaUnit:asyncRun()
---     local co = coroutine.create(function() self:runSync() end)
-
---     local function resumeRunner(errOrCondition)
---         -- errOrCondition may be an error message (string) or the next conditionFunc
---         if coroutine.status(co) == "dead" then
---             return
---         end
---         local ok, yielded = coroutine.resume(co)
---         if not ok then
---             error("LuaUnit asyncRun error: " .. tostring(yielded))
---         end
---         if yielded == nil then
---             error("yielded is nil: " .. tostring(yielded))
---         end
---         if type(yielded) == "function" then
---             Wait.condition(resumeRunner, yielded)
---         end
---     end
-
---     -- kick it off
---     resumeRunner()
--- end
-
--- from your test harness, e.g. in TestMain.lua
-function runTests()
-    lu.LuaUnit:asyncRun()
-end
-
-function onDrop()
-    Wait.condition(runTests, function() return self.resting end)
-end
-
-function waitFor(conditionFunc)
-    -- cause the surrounding test coroutine to yield this function
-    return coroutine.yield(conditionFunc)
-end
-
 function newObject()
     local params = {
         type = "BlockSquare", -- or use a saved object via `params.json` or a saved object ID
@@ -91,11 +18,11 @@ end
 
 TestSpawner = {}
 
-function TestSpawner:setupClass()
+function TestSpawner:setUp()
     -- 1) spawn
     self.obj = newObject()
     -- 2) wait for physics to settle before any assertions or next steps
-    waitFor(function() return self.obj.resting end)
+    lu.await(function() return self.obj.resting end)
 end
 
 function TestSpawner:test_position()
@@ -106,7 +33,7 @@ function TestSpawner:test_rotation()
     lu.assertEquals(Vector(0, 180, 0), self.obj.getRotation())
 end
 
-function TestSpawner:teardownClass()
+function TestSpawner:tearDown()
     if self.obj then
         self.obj.destroy()
         self.obj = nil

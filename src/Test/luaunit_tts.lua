@@ -1,68 +1,53 @@
---[[────────────────────────────────────────────────────────────────────────────
-    LuaUnit Bootstrap for TTS
-    Thin bootstrap that loads upstream LuaUnit, installs the TTS‑specific
-    environment stubs and wires in the multi‑destination output module.
-────────────────────────────────────────────────────────────────────────────]] --
+--- @module luaunit_tts
+-- Bootstrap for the TTS LuaUnit port: loads core runner, env shim, multi-output,
+-- auto-inits on require, and wraps all entry points in coroutines by name.
 
-local lu = require("Test.luaunit")
+local lu        = require("Test.luaunit")
 require("Test.luaunit_tts_env")
+local TTSOutput = require("Test.luaunit_tts_output")
+TTSOutput.currentRunner = nil
 
-local scriptSelf = self
-
-_G.__luaunit_runner_instance = nil
-_G.__luaunit_runner_method = nil
-_G.__luaunit_runner_args = nil
-
-function __runLuaUnitCoroutine()
-    local instance = _G.__luaunit_runner_instance
-    local method = _G.__luaunit_runner_method
-    local args = _G.__luaunit_runner_args or {}
-    method(instance, table.unpack(args))
-    return 1
+--- Initialize the TTS LuaUnit port.
+--- @param scriptOwner :LuaGameObjectScript  drives coroutines & chat/log output
+--- @param gridOwner   :LuaGameObjectScript? where the Grid UI attaches
+function lu.init(scriptOwner, gridOwner)
+    assert(scriptOwner, "luaunit_tts.init: scriptOwner is required")
+    lu.LuaUnit.scriptOwner = scriptOwner
+    TTSOutput.gridOwner   = gridOwner or scriptOwner
+    lu.LuaUnit.outputType = TTSOutput
 end
 
-for _, methodName in ipairs({ "run", "runSuite", "runSuiteByNames", "runSuiteByInstances" }) do
-    local orig = lu.LuaUnit[methodName]
-    lu.LuaUnit[methodName] = function(self, ...)
-        _G.__luaunit_runner_instance = self
-        _G.__luaunit_runner_method = orig
-        _G.__luaunit_runner_args = { ... }
-        startLuaCoroutine(scriptSelf, "__runLuaUnitCoroutine")
-    end
-end
+-- Auto‐initialize when required inside a TTS object script
+local _self = rawget(_G, "self")
+if _self then lu.init(_self) end
 
-lu.LuaUnit.outputType = require("Test.luaunit_tts_output")
-lu.LuaUnit.outputType.gridOwner = self
-lu.LuaUnit.outputType.scriptOwner = scriptSelf
+-- Wrap all core runner methods so they execute inside a named TTS coroutine.
+local methods = { "run", "runSuite", "runSuiteByNames", "runSuiteByInstances" }
+for _, m in ipairs(methods) do
+    local orig = lu.LuaUnit[m]
+    lu.LuaUnit[m] = function(self, ...)
+        assert(self.scriptOwner,
+               "luaunit_tts: call luaunit_tts.init(self[, gridOwner]) in onLoad")
+        local args     = { ... }
+        local coroName = "__luaunit_" .. m .. "_coro"
+        TTSOutput.currentRunner = self
 
---- @section Async/Await Support
 
-local origRun = lu.LuaUnit.run
---- Kick off an asynchronous test run.  Tests can call `await(condFn)` to yield until `condFn()` is true.
---- @param ... any  Command-line style args (patterns, flags), just like `:run(...)`
-function lu.LuaUnit:asyncRun(...)
-    local args = {...}
-    local co = coroutine.create(function() origRun(self, table.unpack(args)) end)
-    local function resumeLoop(lastYield)
-        if coroutine.status(co) == "dead" then return end
-        local ok, yielded = coroutine.resume(co, lastYield)
-        if not ok then error("LuaUnit asyncRun error: "..tostring(yielded)) end
-        if coroutine.status(co) == "dead" then return end
-        if type(yielded) == "function" then
-            Wait.condition(resumeLoop, yielded)
-        else
-            Wait.frames(resumeLoop, 1)
+        -- register a global function for TTS to find by name
+        _G[coroName] = function()
+            orig(self, table.unpack(args))
+            return 1
         end
+
+        -- start it by name per the TTS API
+        startLuaCoroutine(self.scriptOwner, coroName)
     end
-    
-    -- start immediately
-    resumeLoop()
 end
 
---- Yield the surrounding test coroutine until `conditionFn()` returns true.
---- @param conditionFn function():boolean
-function lu.await(conditionFn)
-    return coroutine.yield(conditionFn)
+--- Yield the test coroutine until a condition is met or for N frames.
+--- @param condOrFrames function():boolean | number
+function lu.await(condOrFrames)
+    return coroutine.yield(condOrFrames)
 end
 
 return lu
