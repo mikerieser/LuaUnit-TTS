@@ -2,7 +2,7 @@ local lu = require("Test.luaunit_tts")
 
 local testClasses = {
     TestDemo = require("Test.TestDemo"),
-    TestSpawner = require("Test.TestSpawn"),
+    TestSpawn = require("Test.TestSpawn"),
 }
 
 for name, class in pairs(testClasses) do
@@ -10,8 +10,8 @@ for name, class in pairs(testClasses) do
 end
 
 function runTests()
-    lu.LuaUnit:run()
-    --Global.call("runTests", { self.getGUID() })
+    lu.LuaUnit:run() -- runs the tests configured here.
+    -- Global.call("runTests", { self.getGUID() }) -- runs the tests configured in the global script.
 end
 
 function onDrop()
